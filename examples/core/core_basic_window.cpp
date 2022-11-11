@@ -192,7 +192,7 @@ void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
 {
 	static Spherical sphPos = { 10.0f, PI / 4.0f, PI / 88.0f };
 
-	Spherical sphSpeed = { 2.0f, 0.5f, 0.5f };
+	Spherical sphSpeed = { 2.0f, 0.04f, 0.04f };
 	Spherical sphDelta;
 
 	float rhoMin = 4;
@@ -219,23 +219,13 @@ void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
 	}
 
 	if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-		sphDelta.phi += Clamp(mouseVect.y * deltaTime * sphSpeed.phi, -1, 179);
+		sphDelta.phi += mouseVect.y * deltaTime * sphSpeed.phi;
+		sphDelta.phi = Clamp(sphDelta.phi * RAD2DEG, 1, 179);
+
+		sphDelta.phi *= DEG2RAD;
 	}
 
 	camera->position = SphericalToCartesian(sphDelta);
-
-	// Affichage d'informations relatives aux différentes variables pour le debug
-	//BeginDrawing();
-	//ClearBackground(RAYWHITE);
-	////DrawText(TextFormat("MouseX %f", mousePos.x), 10, 100, 20, BLACK);
-	////DrawText(TextFormat("Theta %f", sphDelta.theta), 10, 150, 20, BLACK);
-	////DrawText(TextFormat("Camera X %f", camera->position.x), 10, 200, 20, BLACK);
-	////DrawText(TextFormat("Mouse VectX %f", mouseVect.x), 10, 250, 20, BLACK);
-	////DrawText(TextFormat("MouseY %f", mousePos.y), 10, 300, 20, BLACK);
-	////DrawText(TextFormat("Mouse VectY %f", mouseVect.y), 10, 350, 20, BLACK);
-	//DrawText(TextFormat("Phi %f", sphDelta.phi), 10, 400, 20, BLACK);
-	////DrawText(TextFormat("Phi DEG %f", sphDelta.phi * DEG2RAD), 10, 450, 20, BLACK);
-	//EndDrawing();
 }
 
 /*
