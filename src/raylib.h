@@ -96,8 +96,8 @@
     #define PI 3.14159265358979323846f
 #endif
 
-#define DEG2RAD (PI/180.0f)
-#define RAD2DEG (180.0f/PI)
+#define DEG2RAD (PI/180.0f)         // deg to rad (il suffit de multiplier cette val à un angle)
+#define RAD2DEG (180.0f/PI)         // rad to deg (Idem)
 
 // Allow custom memory allocators
 #ifndef RL_MALLOC
