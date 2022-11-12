@@ -68,7 +68,7 @@ struct Triangle {
 };
 
 struct Plane {
-	Vector3 n;
+	Vector3 normal;
 	float d;
 };
 
@@ -523,6 +523,30 @@ void MyDrawSphere(Sphere sphere, int nMeridians, int nParallels, bool
 
 }
 
+/*
+* FONCTIONS D'INTERSECTION
+*/
+bool IntersectLinePlane(Line line, Plane plane, float& t, Vector3& interPt, Vector3&
+	interNormal)
+{
+	// no intersection if line is parallel to the plane
+	float dotProd = Vector3DotProduct(plane.normal, line.dir);
+	if (fabsf(dotProd) < EPSILON) return false;
+	// intersection: t, interPt & interNormal
+	t = (plane.d - Vector3DotProduct(plane.normal, line.pt)) / dotProd;
+	interPt = Vector3Add(line.pt, Vector3Scale(line.dir, t)); // OM = OA+tAB
+	interNormal = Vector3Scale(plane.normal,
+		Vector3DotProduct(Vector3Subtract(line.pt, interPt), plane.normal) < 0 ? -1.f : 1.f);
+	return true;
+}
+
+//bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
+//	Vector3& interNormal) {
+//	Vector3 dir = 
+//	//float dotProd = Vector3DotProduct(plane.normal, seg.dir);
+//	//if (fabsf(dotProd) < EPSILON) return false;
+//}
+
 
 
 int main(int argc, char* argv[])
@@ -578,6 +602,7 @@ int main(int argc, char* argv[])
 			DrawSphere({ 0,10,0 }, .2f, GREEN);
 			DrawSphere({ 0,0,10 }, .2f, BLUE);
 
+			// TESTS AFFICHAGE PRIMITIVES 3D
 			// QUAD DISPLAY TEST
 			//ReferenceFrame ref = ReferenceFrame(
 			//	{ 0,2,0 },
@@ -593,11 +618,37 @@ int main(int argc, char* argv[])
 			//MyDrawDisk(d, 30);
 
 			// SPHERE DISPLAY TEST
-			ReferenceFrame ref2 = ReferenceFrame(
-				{0, 0, 0},
-				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), 0));
-			Sphere s = { ref2, 4 };
-			MyDrawPolygonSphere(s, 10, 10);
+			//ReferenceFrame ref2 = ReferenceFrame(
+			//	{0, 0, 0},
+			//	QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), 0));
+			//Sphere s = { ref2, 4 };
+			//MyDrawPolygonSphere(s, 10, 10);
+
+
+			//TESTS INTERSECTIONS
+			Vector3 interPt;
+			Vector3 interNormal;
+			float t;
+
+			//THE SEGMENT
+			Segment segment = { {-5,8,0},{5,-8,3} };
+			DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+
+			// TEST LINE PLANE INTERSECTION
+			Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
+			* .5f)), 2 };
+			ReferenceFrame refQuad = { Vector3Scale(plane.normal, plane.d),
+			QuaternionFromVector3ToVector3({0,1,0},plane.normal) };
+			Quad quad = { refQuad,{10,1,10} };
+			MyDrawQuad(quad);
+			Line line = { segment.pt1,Vector3Subtract(segment.pt2,segment.pt1) };
+			if (IntersectLinePlane(line, plane, t, interPt, interNormal))
+			{
+				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			}
 
 		}
 		EndMode3D();
