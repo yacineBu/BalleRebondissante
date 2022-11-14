@@ -524,6 +524,18 @@ void MyDrawSphere(Sphere sphere, int nMeridians, int nParallels, bool
 }
 
 /*
+* METHODES OTILS POUR FONCTIONS D'INTERSECTION
+*/
+// Utiliser l'équation matriciel vue l'année dernièer (ou traduire l'eq matriciel en système si j'arrive pas à inverser une matrice 3x3)
+//Vector3 LocalToGlobalVect(Vector3 localVect, ReferenceFrame localRef) {
+//
+//}
+//
+//Vector3 GlobalToLocalVect(Vector3 globalVect, ReferenceFrame localRef) {
+//
+//}
+
+/*
 * FONCTIONS D'INTERSECTION
 */
 bool IntersectLinePlane(Line line, Plane plane, float& t, Vector3& interPt, Vector3&
@@ -540,12 +552,21 @@ bool IntersectLinePlane(Line line, Plane plane, float& t, Vector3& interPt, Vect
 	return true;
 }
 
-//bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
-//	Vector3& interNormal) {
-//	Vector3 dir = 
-//	//float dotProd = Vector3DotProduct(plane.normal, seg.dir);
-//	//if (fabsf(dotProd) < EPSILON) return false;
-//}
+// Idem, sauf que dans le cas d'un segment, il faut vérifier que t est compris entre 0 et 1.
+bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
+	Vector3& interNormal) {
+	Vector3 dir = Vector3Subtract(seg.pt1, seg.pt2);			// peut importe l'ordre de pt1 et pt2 dans la soustr
+	float dotProd = Vector3DotProduct(plane.normal, dir);
+	if (fabsf(dotProd) < EPSILON) return false;
+
+	t = (plane.d - Vector3DotProduct(plane.normal, seg.pt1)) / dotProd;
+	// std::cout << "t=" << t << "\n";
+	if (t > 0 || t < -1) return false;
+	interPt = Vector3Add(seg.pt1, Vector3Scale(dir, t)); // OM = OA+tAB
+	interNormal = Vector3Scale(plane.normal,
+		Vector3DotProduct(Vector3Subtract(seg.pt1, interPt), plane.normal) < 0 ? -1.f : 1.f);
+	return true;
+}
 
 
 
@@ -630,7 +651,8 @@ int main(int argc, char* argv[])
 			Vector3 interNormal;
 			float t;
 
-			//THE SEGMENT
+			//THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
+			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
 			Segment segment = { {-5,8,0},{5,-8,3} };
 			DrawLine3D(segment.pt1, segment.pt2, BLACK);
 			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
@@ -639,12 +661,19 @@ int main(int argc, char* argv[])
 			// TEST LINE PLANE INTERSECTION
 			Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
 			* .5f)), 2 };
+			// (on ne peut pas dessiner un plan avec raylib, du coup on rpz ca avec un quad)
 			ReferenceFrame refQuad = { Vector3Scale(plane.normal, plane.d),
 			QuaternionFromVector3ToVector3({0,1,0},plane.normal) };
 			Quad quad = { refQuad,{10,1,10} };
 			MyDrawQuad(quad);
 			Line line = { segment.pt1,Vector3Subtract(segment.pt2,segment.pt1) };
-			if (IntersectLinePlane(line, plane, t, interPt, interNormal))
+
+			/*if (IntersectLinePlane(line, plane, t, interPt, interNormal))
+			{
+				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			}*/
+			if (IntersectSegmentPlane(segment, plane, t, interPt, interNormal))
 			{
 				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
