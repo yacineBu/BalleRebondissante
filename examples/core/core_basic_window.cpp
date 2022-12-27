@@ -192,7 +192,7 @@ void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
 {
 	static Spherical sphPos = { 10.0f, PI / 4.0f, PI / 88.0f };
 
-	Spherical sphSpeed = { 2.0f, 0.04f, 0.04f };
+	Spherical sphSpeed = { 4.0f, 0.08f, 0.08f };
 	Spherical sphDelta;
 
 	float rhoMin = 4;
@@ -309,7 +309,49 @@ void MyDrawQuad(Quad quad, bool drawPolygon = true, bool drawWireframe = true,
 	if (drawWireframe) MyDrawWireframeQuad(quad, wireframeColor);
 }
 
-// DISK
+// BOX
+void MyDrawPolygonBox(Box box, Color color) {
+	std::vector<Quad> boxQuads;
+
+	for each (Quad quad in boxQuads)
+	{
+		MyDrawPolygonQuad(quad, color);
+	}
+}
+
+void MyDrawWireframeBox(Quad box, Color color) {
+	std::vector<Quad> boxQuads;
+
+	for each (Quad quad in boxQuads)
+	{
+		MyDrawWireframeQuad(quad, color);
+	}
+}
+
+void MyDrawBox(Box box, bool drawPolygon = true, bool drawWireframe = true,
+	Color polygonColor = LIGHTGRAY, Color wireframeColor = DARKGRAY) {
+
+}
+
+/// <summary>
+/// Créer le tab qui contient les points du disque (nbr de points en fnc de nSectors).
+/// On fait ca en utilisant le système de coordonnées cylindrique (ca facilite les choses, seulement la coordonnée teta est à modifier).
+/// Méthode utilisé par les méthodes de dessin du disque et du cylindre.
+/// </summary>
+/// <param name="nSectors"></param>
+/// <returns></returns>
+std::vector<Cylindrical> computeDiskPoints(int nSectors) {
+	float pitch = 2 * PI / nSectors;
+	std::vector<Cylindrical> diskPointsAtPerim;
+	for (int i = 0; i < nSectors; i++) {
+		diskPointsAtPerim.push_back({ 1, i * pitch, 0 });
+	}
+	diskPointsAtPerim.push_back({ 1, 0, 0 });		// On termine le tableau par une duplication du tout premier point du disk (pratique pour le moment où on dessine le disk)
+
+	return diskPointsAtPerim;
+}
+
+// DISQUE
 void MyDrawPolygonDisk(Disk disk, int nSectors, Color color = LIGHTGRAY) {
 	// Minimum 3 secteur de disque pour pouvoir tracer le disque
 	if (nSectors < 3) {
@@ -329,13 +371,7 @@ void MyDrawPolygonDisk(Disk disk, int nSectors, Color color = LIGHTGRAY) {
 	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);			// rotation du "crayon" en mode quaterninon, bon ici on applique la rotation à partir d'un axe/vecteur (vect.x, vect.y, vect.z) et d'un angle, pour simplifier les choses
 	rlScalef(disk.radius, 1, disk.radius);
 
-	// Création du tab qui contient les points du disque (nbr de points en fnc de nSectors). On fait ca en utilisant le système de coordonnées cylindrique (ca facilite les choses, seulement la coordonnée teta est à modifier)
-	float pitch = 2 * PI / nSectors;
-	std::vector<Cylindrical> diskPointsAtPerim;
-	for (int i = 0; i < nSectors; i++) {
-		diskPointsAtPerim.push_back({ 1, i * pitch, 0 });
-	}
-	diskPointsAtPerim.push_back({ 1, 0, 0 });		// On termine le tableau par une duplication du tout premier point du disk (pratique pour le moment où on dessine le disk)
+	std::vector<Cylindrical> diskPointsAtPerim = computeDiskPoints(nSectors);
 
 	// Enfin, on dessine le disque, en utilisant les méthodes de conversion pour repasser au sys cartésien
 	rlBegin(RL_TRIANGLES);			// 1 triangle = 3 points. Tout les 3 appels à rlVertex3f(), un triangle se dessine.
@@ -398,10 +434,177 @@ void MyDrawDisk(Disk disk, int nSectors, bool drawPolygon = true, bool drawWiref
 	if (drawWireframe) MyDrawWireframeDisk(disk, nSectors, wireframeColor);
 }
 
+// CYLINDRE
+
+void MyDrawCylinder2(Cylinder cyl, int nSegmentsTheta, Color color = DARKGRAY) {
+	int sides = 100;
+	int numVertex = sides * 6;
+	if (rlCheckBufferLimit(numVertex)) rlglDraw();
+	rlPushMatrix();
+	Vector3 position = cyl.ref.origin;
+	rlTranslatef(position.x, position.y, position.z);
+
+	//ROTATION
+	Vector3 vect;
+	float angle;
+	QuaternionToAxisAngle(cyl.ref.q, &vect, &angle);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+
+	rlBegin(RL_TRIANGLES);
+	rlColor4ub(color.r, color.g, color.b, color.a);
+	float radius = cyl.radius;
+	float height = cyl.halfHeight;
+
+	Vector3 top = { 0,height * .5f,0 };
+	Vector3 bottom = { 0,-height * .5f,0 };
+
+
+	// Draw Body -------------------------------------------------------------------------------------
+	for (int i = 0; i < 360; i += 360 / sides)
+	{
+
+		rlVertex3f(sinf(DEG2RAD * i) * radius, bottom.y, cosf(DEG2RAD * i) * radius); //Bottom Left
+		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, bottom.y, cosf(DEG2RAD * (i + 360 / sides)) * radius); //Bottom Right
+		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, top.y, cosf(DEG2RAD * (i + 360 / sides)) * radius); //Top Right
+		rlVertex3f(sinf(DEG2RAD * i) * radius, top.y, cosf(DEG2RAD * i) * radius); //Top Left
+		rlVertex3f(sinf(DEG2RAD * i) * radius, bottom.y, cosf(DEG2RAD * i) * radius); //Bottom Left
+		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, top.y, cosf(DEG2RAD * (i + 360 / sides)) * radius); //Top Right
+	}
+	Disk dT = Disk{};
+	dT.ref.origin = { 0,height * 0.5f,0 };
+	dT.radius = radius;
+	dT.ref.q = cyl.ref.q;
+	//
+	// TODO racalculer la rotation pour face la base
+	//MyDrawDisk(dT, nSegmentsTheta, color);
+
+	// Draw Cap --------------------------------------------------------------------------------------
+	for (int i = 0; i < 360; i += 360 / sides)
+	{
+		rlVertex3f(0, top.y, 0);
+		rlVertex3f(sinf(DEG2RAD * i) * radius, top.y, cosf(DEG2RAD * i) * radius);
+		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, top.y, cosf(DEG2RAD * (i + 360 / sides)) * radius);
+	}
+	// Draw Base -----------------------------------------------------------------------------------------
+	for (int i = 0; i < 360; i += 360 / sides)
+	{
+		rlVertex3f(0, bottom.y, 0);
+		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, bottom.y, cosf(DEG2RAD * (i + 360 / sides)) * radius);
+		rlVertex3f(sinf(DEG2RAD * i) * radius, bottom.y, cosf(DEG2RAD * i) * radius);
+	}
+	rlEnd();
+	rlPopMatrix();
+}
+
+
+// drawCaps indique probablement si oui ou non on veut que le cylindre soit fermé par des disques
+void MyDrawPolygonCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
+	false, Color color = LIGHTGRAY) {
+	if (nSectors < 3) {
+		return;
+	}
+
+	int numVertex = nSectors * 6;
+	if (rlCheckBufferLimit(numVertex)) rlglDraw();
+
+	rlPushMatrix();
+
+	rlTranslatef(cylinder.ref.origin.x, cylinder.ref.origin.y, cylinder.ref.origin.z);
+	Vector3 vect;
+	float angle;
+	QuaternionToAxisAngle(cylinder.ref.q, &vect, &angle);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+	rlScalef(cylinder.radius, cylinder.halfHeight, cylinder.radius);
+
+	std::vector<Cylindrical> diskPointsAtPerim = computeDiskPoints(nSectors);
+
+	rlBegin(RL_TRIANGLES);
+	rlColor4ub(color.r, color.g, color.b, color.a);
+	Vector3 carPt, carPt2;
+	for (int i = 0; i < diskPointsAtPerim.size() - 1; i++) {
+		carPt = CylindricalToCartesian(diskPointsAtPerim[i]);
+		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
+		rlVertex3f(carPt.x, carPt.y - 0.5, carPt.z);
+		carPt2 = CylindricalToCartesian(diskPointsAtPerim[i + 1]);
+		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
+		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
+		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
+		rlVertex3f(carPt2.x, carPt2.y + 0.5, carPt2.z);
+	}
+	rlEnd();
+
+	rlPopMatrix();
+
+	if (drawCaps) {
+		Disk top, bottom;
+
+		// Utile pour positionner le disk haut et le disque bas
+		float halfHeightDiv2 = cylinder.halfHeight / 2;
+		Vector3 vectorFromCylRefToDiskRef = Vector3Multiply(cylinder.ref.j, { halfHeightDiv2, halfHeightDiv2, halfHeightDiv2 });
+
+		Vector3 originTop = Vector3Add(cylinder.ref.origin, vectorFromCylRefToDiskRef);
+		Vector3 originBottom = Vector3Subtract(cylinder.ref.origin, vectorFromCylRefToDiskRef);
+
+		top = { {originTop, cylinder.ref.q}, cylinder.radius };
+		Vector3 test = QuaternionToEuler(cylinder.ref.q);
+		test.x += PI;		// chercher how to flip orientation of 3d object quaterion
+		bottom = { {originBottom, QuaternionFromEuler(test.x, test.y, test.z)}, cylinder.radius};
+		
+		MyDrawPolygonDisk(top, nSectors);
+		MyDrawPolygonDisk(bottom, nSectors);
+	}
+}
+
+void MyDrawWireframeCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
+	false, Color color = LIGHTGRAY) {
+	if (nSectors < 3) {
+		return;
+	}
+
+	int numVertex = nSectors * 10;
+	if (rlCheckBufferLimit(numVertex)) rlglDraw();
+
+	rlPushMatrix();
+
+	rlTranslatef(cylinder.ref.origin.x, cylinder.ref.origin.y, cylinder.ref.origin.z);
+	Vector3 vect;
+	float angle;
+	QuaternionToAxisAngle(cylinder.ref.q, &vect, &angle);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+	rlScalef(cylinder.radius, cylinder.halfHeight, cylinder.radius);
+
+	std::vector<Cylindrical> diskPointsAtPerim = computeDiskPoints(nSectors);
+
+	rlBegin(RL_LINES);
+	rlColor4ub(color.r, color.g, color.b, color.a);
+	Vector3 carPt, carPt2;
+	for (int i = 0; i < diskPointsAtPerim.size() - 1; i++) {
+		carPt = CylindricalToCartesian(diskPointsAtPerim[i]);
+		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
+		rlVertex3f(carPt.x, carPt.y - 0.5, carPt.z);
+		rlVertex3f(carPt.x, carPt.y - 0.5, carPt.z);
+		carPt2 = CylindricalToCartesian(diskPointsAtPerim[i + 1]);
+		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
+		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
+		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
+		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
+		rlVertex3f(carPt2.x, carPt2.y + 0.5, carPt2.z);
+		rlVertex3f(carPt2.x, carPt2.y + 0.5, carPt2.z);
+		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
+	}
+	rlEnd();
+
+	rlPopMatrix();
+}
+
+void MyDrawCylinder(Cylinder cylinder, int nSectors, bool drawCaps = false, bool
+	drawPolygon = true, bool drawWireframe = true, Color polygonColor = LIGHTGRAY,
+	Color wireframeColor = DARKGRAY) {
+	if (drawPolygon) MyDrawPolygonCylinder(cylinder, nSectors, drawCaps, polygonColor);
+	if (drawWireframe) MyDrawWireframeCylinder(cylinder, nSectors, drawCaps, wireframeColor);
+}
+
 // SPHERE
-
-// void DrawTop();
-
 // écrire code de test pour chaque meth de tracage 
 void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	color = LIGHTGRAY) {
@@ -623,20 +826,38 @@ int main(int argc, char* argv[])
 			DrawSphere({ 0,10,0 }, .2f, GREEN);
 			DrawSphere({ 0,0,10 }, .2f, BLUE);
 
+			ReferenceFrame refBase = ReferenceFrame(
+				{ 0, 0, 0 },
+				QuaternionIdentity()
+			);
+			ReferenceFrame ref1 = ReferenceFrame(
+				{ 0,2,0 },
+				QuaternionFromAxisAngle(Vector3Normalize({ 1,1,1 }), PI / 4)
+			);
+			ReferenceFrame ref2 = ReferenceFrame(
+				{3, 1, 0},
+				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 3)
+			);
+			ReferenceFrame ref3 = ReferenceFrame(
+				{ 0, 0, 0 },
+				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 2)
+			);
+
 			// TESTS AFFICHAGE PRIMITIVES 3D
+			// Pour tester, décommenter les parties de code suivantes
 			// QUAD DISPLAY TEST
-			//ReferenceFrame ref = ReferenceFrame(
-			//	{ 0,2,0 },
-			//	QuaternionFromAxisAngle(Vector3Normalize({ 1,1,1 }), PI / 4));
-			//Quad quad = { ref,{3,1,5} };
+			//Quad quad = { refBase,{4,0,4} };
 			//MyDrawQuad(quad);
 
 			// DISK DISPLAY TEST
-			//ReferenceFrame ref2 = ReferenceFrame(
-			//	{3, 1, 0},
-			//	QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 3));
 			//Disk d = { ref2, 5 };
 			//MyDrawDisk(d, 30);
+
+			// CYLINDER DISPLAY TEST
+			Cylinder c = { ref2, 4, 2};
+			//MyDrawCylinder(c, 10);
+			MyDrawCylinder2(c, 10);
+
 
 			// SPHERE DISPLAY TEST
 			//ReferenceFrame ref2 = ReferenceFrame(
@@ -653,31 +874,31 @@ int main(int argc, char* argv[])
 
 			//THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
-			Segment segment = { {-5,8,0},{5,-8,3} };
-			DrawLine3D(segment.pt1, segment.pt2, BLACK);
-			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			//Segment segment = { {-5,8,0},{5,-8,3} };
+			//DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			//MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			//MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
-			// TEST LINE PLANE INTERSECTION
-			Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
-			* .5f)), 2 };
-			// (on ne peut pas dessiner un plan avec raylib, du coup on rpz ca avec un quad)
-			ReferenceFrame refQuad = { Vector3Scale(plane.normal, plane.d),
-			QuaternionFromVector3ToVector3({0,1,0},plane.normal) };
-			Quad quad = { refQuad,{10,1,10} };
-			MyDrawQuad(quad);
-			Line line = { segment.pt1,Vector3Subtract(segment.pt2,segment.pt1) };
+			//// TEST LINE PLANE INTERSECTION
+			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
+			//* .5f)), 2 };
+			//// (on ne peut pas dessiner un plan avec raylib, du coup on rpz ca avec un quad)
+			//ReferenceFrame refQuad = { Vector3Scale(plane.normal, plane.d),
+			//QuaternionFromVector3ToVector3({0,1,0},plane.normal) };
+			//Quad quad = { refQuad,{10,1,10} };
+			//MyDrawQuad(quad);
+			//Line line = { segment.pt1,Vector3Subtract(segment.pt2,segment.pt1) };
 
-			/*if (IntersectLinePlane(line, plane, t, interPt, interNormal))
-			{
-				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-			}*/
-			if (IntersectSegmentPlane(segment, plane, t, interPt, interNormal))
-			{
-				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-			}
+			///*if (IntersectLinePlane(line, plane, t, interPt, interNormal))
+			//{
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}*/
+			//if (IntersectSegmentPlane(segment, plane, t, interPt, interNormal))
+			//{
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
 
 		}
 		EndMode3D();
