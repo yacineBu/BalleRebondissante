@@ -39,6 +39,7 @@ template <typename T> int sgn(T val) {
 	return (T(0) < val) - (val < T(0));
 }
 
+#pragma region Structure;
 struct Cylindrical {
 	float rho;
 	float theta;
@@ -69,7 +70,7 @@ struct Triangle {
 
 struct Plane {
 	Vector3 normal;
-	float d;
+	float d;		// d est la distance entre le point "au centre du plan" et l'origine du monde, sur l'axe du vecteur normal
 };
 
 struct ReferenceFrame {
@@ -108,6 +109,8 @@ struct ReferenceFrame {
 		k = Vector3RotateByQuaternion({ 0,0,1 }, q);
 	}
 };
+
+
 
 struct Quad {
 	ReferenceFrame ref;
@@ -151,7 +154,9 @@ struct RoundedBox {
 	Vector3 extents;
 	float radius;
 };
+#pragma endregion;
 
+#pragma region Tools;
 Vector3 CylindricalToCartesian(Cylindrical cyl) {
 	return { cyl.rho * sinf(cyl.theta), cyl.y, cyl.rho * cosf(cyl.theta) };
 }
@@ -188,51 +193,62 @@ Spherical CartesianToSpherical(Vector3 cart) {
 	return sph;
 }
 
-void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
-{
-	static Spherical sphPos = { 10.0f, PI / 4.0f, PI / 88.0f };
-
-	Spherical sphSpeed = { 4.0f, 0.08f, 0.08f };
-	Spherical sphDelta;
-
-	float rhoMin = 4;
-	float rhoMax = 40;
-
-	Vector2 mousePos;
-	Vector2 mouseVect;
-	static Vector2 prevMousePos = { 0,0 };
-
-	// Gestion de la souris 
-	mousePos = GetMousePosition(); // 1) récupération de la position de la souris
-	mouseVect = Vector2Subtract(mousePos, prevMousePos); // 2) calcul du vecteur de déplacement de la souris entre la position courante de la souris et la précédente
-	prevMousePos = mousePos; // 3) mise à jour de la position précédente de la souris avec la position courante
-
-	// 4) calcul du vecteur de déplacement de la caméra en coordonnées sphériques
-	sphDelta = CartesianToSpherical(camera->position);
-
-
-	sphDelta.rho += (GetMouseWheelMove() * deltaTime * sphSpeed.rho * sphPos.rho);
-	sphDelta.rho = Clamp(sphDelta.rho, rhoMin, rhoMax);
-
-	if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
-		sphDelta.theta += mouseVect.x * deltaTime * sphSpeed.theta * sphPos.theta;
-	}
-
-	if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-		sphDelta.phi += mouseVect.y * deltaTime * sphSpeed.phi;
-		sphDelta.phi = Clamp(sphDelta.phi * RAD2DEG, 1, 179);
-
-		sphDelta.phi *= DEG2RAD;
-	}
-
-	camera->position = SphericalToCartesian(sphDelta);
+/// <summary>
+/// Exprime un vecteur défini en coordonnées globales en coordonnées locales
+/// </summary>
+/// <param name="globalVect">Le vecteur à convertir</param>
+/// <param name="localRef">Référentiel local cible</param>
+/// <returns>Vecteur exprimé en coordonnées locales</returns>
+Vector3 GlobalToLocalVect(Vector3 globalVect, ReferenceFrame localRef) {
+	return { 
+		Vector3DotProduct(globalVect, localRef.i),
+		Vector3DotProduct(globalVect, localRef.j),
+		Vector3DotProduct(globalVect, localRef.k)
+	};
 }
 
-/*
- * FONCTIONS DE DESSIN
- */
+/// <summary>
+/// Exprime un vecteur défini en coordonnées locales en coordonnées globales
+/// </summary>
+/// <param name="localVect">Le vecteur à convertir</param>
+/// <param name="localRef">Référentiel local source</param>
+/// <returns>Vecteur exprimé en coordonnées globales</returns>
+Vector3 LocalToGlobalVect(Vector3 localVect, ReferenceFrame localRef) {
+	Vector3 xVect = Vector3Scale(localRef.i, localVect.x);
+	Vector3 yVect = Vector3Scale(localRef.j, localVect.y);
+	Vector3 zVect = Vector3Scale(localRef.k, localVect.z);
 
- //QUAD
+	return Vector3Add(Vector3Add(xVect, yVect), zVect);
+}
+
+/// <summary>
+/// Exprime un point défini en coordonnées globales en coordonnées locales
+/// </summary>
+/// <param name="globalPos">Le point à convertir</param>
+/// <param name="localRef">Référentiel local cible</param>
+/// <returns>Point exprimé en coordonnées locales</returns>
+Vector3 GlobalToLocalPos(Vector3 globalPos, ReferenceFrame localRef)
+{
+	Vector3 worldOrigin = { 0,0,0 };
+	Vector3 globalVect = Vector3Subtract(Vector3Subtract(globalPos, worldOrigin), Vector3Subtract(localRef.origin, worldOrigin));
+
+	return GlobalToLocalVect(globalVect, localRef);
+}
+
+/// <summary>
+/// Exprime un point défini en coordonnées locales en coordonnées globales
+/// </summary>
+/// <param name="localPos">Le point à convertir</param>
+/// <param name="localRef">Référentiel local source</param>
+/// <returns>Point exprimé en coordonnées globales</returns>
+Vector3 LocalToGlobalPos(Vector3 localPos, ReferenceFrame localRef) {
+	Vector3 worldOrigin = { 0,0,0 };
+
+	return Vector3Add(Vector3Subtract(localRef.origin, worldOrigin), LocalToGlobalVect(localPos, localRef));
+}
+#pragma endregion;
+
+#pragma region PrimitiveDraw;
 void MyDrawPolygonQuad(Quad quad, Color color = LIGHTGRAY)
 {
 	int numVertex = 6;
@@ -334,7 +350,7 @@ void MyDrawBox(Box box, bool drawPolygon = true, bool drawWireframe = true,
 }
 
 /// <summary>
-/// Créer le tab qui contient les points du disque (nbr de points en fnc de nSectors).
+/// Créer le tableau qui contient les points du disque. Le nombre de points est en fonction de nSectors.
 /// On fait ca en utilisant le système de coordonnées cylindrique (ca facilite les choses, seulement la coordonnée teta est à modifier).
 /// Méthode utilisé par les méthodes de dessin du disque et du cylindre.
 /// </summary>
@@ -725,22 +741,9 @@ void MyDrawSphere(Sphere sphere, int nMeridians, int nParallels, bool
 	Color wireframeColor = DARKGRAY) {
 
 }
+#pragma endregion;
 
-/*
-* METHODES OTILS POUR FONCTIONS D'INTERSECTION
-*/
-// Utiliser l'équation matriciel vue l'année dernièer (ou traduire l'eq matriciel en système si j'arrive pas à inverser une matrice 3x3)
-//Vector3 LocalToGlobalVect(Vector3 localVect, ReferenceFrame localRef) {
-//
-//}
-//
-//Vector3 GlobalToLocalVect(Vector3 globalVect, ReferenceFrame localRef) {
-//
-//}
-
-/*
-* FONCTIONS D'INTERSECTION
-*/
+#pragma region Intersection;
 bool IntersectLinePlane(Line line, Plane plane, float& t, Vector3& interPt, Vector3&
 	interNormal)
 {
@@ -771,7 +774,434 @@ bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
 	return true;
 }
 
+/**
+*	@brief Fonction d'intersection : Segment - Quad
+*	@param seg Segment qui peut intersecter le quad
+*	@param quad Quad qui doit être intersecté par le segment
+*	@param interPt Adresse où l'on place le point d'intersection entre le quad et le segment
+*	@param interNormal Adresse où l'on place le vecteur normal au quad au point d'intersection
+*	@return Vrai si collision, sinon faux
+*/
 
+/// <summary>
+/// 
+/// </summary>
+/// <param name="seg"></param>
+/// <param name="quad"></param>
+/// <param name="t"></param>
+/// <param name="interPt"></param>
+/// <param name="interNormal"></param>
+/// <returns></returns>
+bool IntersectSegmentQuad(Segment seg, Quad quad, float& t, Vector3& interPt, Vector3& interNormal) {
+	Plane superimposedPlane;
+	Vector3 n = quad.ref.j;
+	Vector3 M = Vector3Scale(n, );
+	float d = Vector3Length(Vector3Add(quad.ref.origin, ));		// j'suis pas sur que ce soit la fonction norme !!!!!!!!!!!!!!!!!!
+	superimposedPlane = { n, d};
+
+	bool isIntersection = IntersectSegmentPlane(seg, superimposedPlane, t, interPt, interNormal);
+	if (isIntersection) {
+		Vector3 localPos = GlobalToLocalPos(interPt, quad.ref);
+		return ((fabsf(localPos.x) <= quad.extents.x / 2) && (fabsf(localPos.z) <= quad.extents.z / 2));
+	}
+	else
+		return false;
+}
+
+
+bool IntersectSegmentSphere(Segment seg, Sphere sph, float* t, Vector3* interPt, Vector3* interNormal) {
+
+	Vector3 vecteurAB = Vector3Subtract(seg.pt2, seg.pt1); // vecteur AB
+	Vector3 vecteur2AB = Vector3Scale(vecteurAB, 2.0); // vecteur 2AB
+	Vector3 vecteurOmegaA = Vector3Subtract(seg.pt1, sph.ref.origin); // vecteur Oméga A
+	float omegaADotOmegaA = Vector3DotProduct(vecteurOmegaA, vecteurOmegaA); // Oméga A . Oméga A
+	float rAuCarre = pow(sph.radius, 2.0);
+
+	float a = Vector3DotProduct(vecteurAB, vecteurAB); // a = AB . AB
+
+	float b = Vector3DotProduct(vecteur2AB, vecteurOmegaA); // b = 2AB . Oméga A
+
+	float c = omegaADotOmegaA - rAuCarre; // c = OmégaA² - r²
+
+	float delta = pow(b, 2.0) - (4 * a * c);
+
+	*t = (-b - sqrtf(delta)) / (2 * a);
+
+	std::cout << "t=" << *t << "\n";
+
+	if (*t < 0 || *t > 1) return false;
+
+	*interPt = Vector3Add(seg.pt1, Vector3Scale(vecteurAB, *t));
+
+	*interNormal = Vector3Subtract(sph.ref.origin, *interPt);
+
+	return true;
+}
+
+// todo : rendre fonctionnel l'argument t
+// ptet aussi que y'a moyen de la faire fonctionner avec plane
+/*
+bool InterSegmentDisk(Segment seg, Disk disk, float& t, Vector3& interPt, Vector3& interNormal) {
+	float distanceDiskOrigin = Vector3Distance({ 0,0,0 }, disk.ref.origin);
+	Plane planeOfDisk = { disk.ref.j, distanceDiskOrigin };
+
+	if (IntersectSegmentQuad(seg, quadOnDisk, interPt, interNormal)) {
+		if (Vector3Distance(plane.position, interPt) <= disk.radius * .5f) {
+			return true;
+		}
+	}
+
+	return false;
+}
+*/
+
+// todo : rendre fonctionnel l'argument t
+bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& interPt, Vector3& interNormal) {
+
+	Vector3 cylDir = Vector3RotateByQuaternion({ 0,1,0 }, cyl.ref.q);
+
+	Vector3 A = Vector3Add(cyl.ref.origin, Vector3Scale(cylDir, -cyl.halfHeight * .5f));		// bas du cyl
+	Vector3 B = Vector3Add(cyl.ref.origin, Vector3Scale(cylDir, cyl.halfHeight * .5f));		// haut du cyl
+	float r = cyl.radius;			// rayon
+	Vector3 start = seg.pt1;
+	Vector3 dir = Vector3Normalize(Vector3Subtract(seg.pt2, seg.pt1));
+
+	double cxmin, cymin, czmin, cxmax, cymax, czmax;
+	if (A.z < B.z) {
+		czmin = A.z - r; czmax = B.z + r;
+	}
+	else {
+		czmin = B.z - r; czmax = A.z + r;
+	}
+	if (A.y < B.y) {
+		cymin = A.y - r; cymax = B.y + r;
+	}
+	else {
+		cymin = B.y - r; cymax = A.y + r;
+	}
+	if (A.x < B.x) {
+		cxmin = A.x - r; cxmax = B.x + r;
+	}
+	else {
+		cxmin = B.x - r; cxmax = A.x + r;
+	}
+
+	Vector3 AB = Vector3Subtract(B, A);
+	Vector3 AO = Vector3Subtract(start, A);
+	Vector3 AOxAB = Vector3CrossProduct(AO, AB);
+	Vector3 VxAB = Vector3CrossProduct(dir, AB);
+	double ab2 = Vector3DotProduct(AB, AB);
+	double a = Vector3DotProduct(VxAB, VxAB);
+	double b = 2 * Vector3DotProduct(VxAB, AOxAB);
+	double c = Vector3DotProduct(AOxAB, AOxAB) - (r * r * ab2);
+	double d = b * b - 4 * a * c;
+	if (d <= 0) return false;
+	t = (-b - sqrt(d)) / (2 * a);				// c'est ca t (faire un print à l'exec pour vérifier mais ca doit etre ca)
+	//std::cout << "t=" << t << "\n";
+
+	if (time < 0) return false;
+
+	interPt = Vector3Add(start, Vector3Scale(dir, t));
+	Vector3 projection = Vector3Add(A, Vector3Scale(AB, (Vector3DotProduct(AB, Vector3Subtract(interPt, A)) / ab2)));
+	if (Vector3Length(Vector3Subtract(projection, A)) + Vector3Length(Vector3Subtract(B, projection)) > Vector3Length(AB) || Vector3Distance(start, interPt) > Vector3Distance(seg.pt1, seg.pt2)) return false;
+	interNormal = Vector3Normalize(Vector3Subtract(interPt, projection));
+	return true;
+}
+
+/// <summary>
+/// Indique si il y a intersection entre un segment et une capsule
+/// </summary>
+/// <param name="seg"></param>
+/// <param name="capsule"></param>
+/// <param name="t"></param>
+/// <param name="interPt"></param>
+/// <param name="interNormal"></param>
+/// <returns>True pour intersection, False sinon</returns>
+bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& interPt, Vector3& interNormal) {
+	bool isIntersec = false;
+	bool tmpIsIntersec = false;
+	interPt = { FLT_MAX };
+	interNormal = { FLT_MAX };
+
+	Vector3 up = LocalToGlobalPos({ 0, capsule.height, 0 }, capsule.referential);
+	Vector3 down = LocalToGlobalPos({ 0, 0, 0 }, capsule.referential);
+
+	// Quaternions utiles
+	Quaternion qUp = QuaternionFromAxisAngle({ 0, 0, 1 }, 0.5 * PI);
+	Quaternion qDown = QuaternionFromAxisAngle({ 0, 0, 1 }, 1.5 * PI);
+	Quaternion qIdentity = QuaternionIdentity();
+
+	// 2 sphères + 1 cylindre
+	Referential ref = Referential(down);
+	ref.RotateByQuaternion(capsule.referential.q);
+	Cylinder cylinder = Cylinder(ref, capsule.radius, capsule.height);
+	cylinder.UpdateCylinder();
+
+	Sphere sphereUp = { up, capsule.radius };
+	Sphere sphereDown = { down, capsule.radius };
+
+	Vector3 tmpInterPt;
+	Vector3 tmpInterNormal;
+
+	// Test de collision avec le cylindre
+	tmpIsIntersec = InterSegmentFiniteCylinder(seg, cylinder, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	// Test de collision avec la première sphère
+	tmpIsIntersec = InterSegSphere(seg, sphereUp, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	// Test de collision avec la seconde sphère
+	tmpIsIntersec = InterSegSphere(seg, sphereDown, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	return isIntersec;
+}
+
+/**
+*	@brief Fonction d'intersection : Segment - RoundedBox
+*	@param seg Segment qui peut intersecter la RoundedBox
+*	@param roundedBox RoundedBox qui doit être intersecté par le segment
+*	@param interPt Adresse où l'on place le point d'intersection entre la RoundedBox et le segment
+*	@param interNormal Adresse où l'on place le vecteur normal à la RoundedBox au point d'intersection
+*	@return Vrai si collision, sinon faux
+*/
+/*
+bool IntersecSegRoundedBox(Segment seg, RoundedBox roundedBox, Vector3& interPt, Vector3& interNormal) {
+	bool tmpIsIntersec = false;
+	bool isIntersec = false;
+	interPt = { FLT_MAX };
+	interNormal = { FLT_MAX };
+	Vector3 tmpInterPt;
+	Vector3 tmpInterNormal;
+
+	// L'origine de la RoundedBox est originellement positionnée dans la sphère commune à l'intersection des 3 premières capsules
+	// On doit donc les décaler d'une extension négative en X et Y, et positive en Z
+	// Considérons qu'une 'roundedBox.extension' est ici la longueur du cylindre de la capsule (donc x2 par rapport à une extension réelle)
+	Vector3 posRef = Vector3Add(roundedBox.ref.origin, { -roundedBox.extension.x / 2, -roundedBox.extension.y / 2, roundedBox.extension.z / 2 });
+
+	// Quaternions utiles
+	Quaternion qLeft = QuaternionFromAxisAngle({ 1, 0, 0 }, -PI * 0.5f);
+	Quaternion qFront = QuaternionFromAxisAngle({ 0, 0, 1 }, -PI * 0.5f);
+	Quaternion qUp = QuaternionIdentity();
+
+
+	//		TEST D'INTERSECTION DES CAPSULES DE LA ROUNDEDBOX
+	// Une capsule sans quaternion est positionné vers le haut, donc ici on rotate la capsule sur l'axe x, de pi/2 pour qu'elle se couche parallèle à l'axe z
+	Capsule capsLeftBottom = { Referential(posRef, qLeft), roundedBox.radius, roundedBox.extension.z };
+	// Test d'intersection
+	tmpIsIntersec = InterSegmentCapsule(seg, capsLeftBottom, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		// Mise en place des valeurs de la position d'intersection et sa normale
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsFrontBottom = { Referential(posRef, qFront), roundedBox.radius, roundedBox.extension.x };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsFrontBottom, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsFrontLeft = { Referential(posRef, qUp), roundedBox.radius, roundedBox.extension.y };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsFrontLeft, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsFrontTop = { Referential(Vector3Add(posRef, { 0, roundedBox.extension.y, 0 }), qFront), roundedBox.radius, roundedBox.extension.x };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsFrontTop, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsFrontRight = { Referential(Vector3Add(posRef, {roundedBox.extension.x, 0, 0}), qUp), roundedBox.radius, roundedBox.extension.y };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsFrontRight, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsRightBottom = { Referential(Vector3Add(posRef, { roundedBox.extension.x, 0, 0 }), qLeft), roundedBox.radius, roundedBox.extension.z };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsRightBottom, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsRightTop = { Referential(Vector3Add(posRef, { roundedBox.extension.x, roundedBox.extension.y, 0 }), qLeft), roundedBox.radius, roundedBox.extension.z };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsRightTop, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsLeftTop = { Referential(Vector3Add(posRef, { 0, roundedBox.extension.y, 0 }), qLeft), roundedBox.radius, roundedBox.extension.z };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsLeftTop, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsBackBottom = { Referential(Vector3Add(posRef, {0, 0, -roundedBox.extension.z}), qFront), roundedBox.radius, roundedBox.extension.x };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsBackBottom, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsBackTop = { Referential(Vector3Add(posRef, { 0, roundedBox.extension.y, -roundedBox.extension.z }), qFront), roundedBox.radius, roundedBox.extension.x };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsBackTop, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsBackLeft = { Referential(Vector3Add(posRef, { 0, 0, -roundedBox.extension.z }), qUp), roundedBox.radius, roundedBox.extension.y };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsBackLeft, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Capsule capsBackRight = { Referential(Vector3Add(posRef, { roundedBox.extension.x, 0, -roundedBox.extension.z }), qUp), roundedBox.radius, roundedBox.extension.y };
+	tmpIsIntersec = InterSegmentCapsule(seg, capsBackRight, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+	//		*fin* TEST D'INTERSECTION DES CAPSULES DE LA ROUNDEDBOX
+
+
+	// Un quad sans quaternion est positionné vers le haut (sa normale est orientée selon y),donc ici on rotate le quad sur l'axe x, de pi/2 pour qu'elle se place droit avec sa normale parallèle à l'axe z
+	Quaternion qFrontQuad = QuaternionFromAxisAngle({ 1, 0, 0 }, PI * 0.5f);
+	Quad quadFront = { Referential(Vector3Add(posRef, {roundedBox.extension.x / 2, roundedBox.extension.y / 2, roundedBox.radius}), qFrontQuad), {roundedBox.extension.x, roundedBox.extension.z, roundedBox.extension.y } };
+	// Test d'intersection
+	tmpIsIntersec = IntersectSegmentQuad(seg, quadFront, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Quaternion qBackQuad = QuaternionFromAxisAngle({ 1, 0, 0 }, -PI * 0.5f);
+	Quad quadBack = { Referential(Vector3Add(posRef, {roundedBox.extension.x / 2,  roundedBox.extension.y / 2, -(roundedBox.extension.z + roundedBox.radius)}), qBackQuad), {roundedBox.extension.x, roundedBox.extension.z, roundedBox.extension.y} };
+	tmpIsIntersec = IntersectSegmentQuad(seg, quadBack, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Quaternion qRightQuad = QuaternionFromAxisAngle({ 0, 0, 1 }, -PI * 0.5f);
+	Quad quadRight = { Referential(Vector3Add(posRef, {roundedBox.extension.x + roundedBox.radius, roundedBox.extension.y / 2, -roundedBox.extension.z / 2}), qRightQuad), {roundedBox.extension.y, roundedBox.extension.x, roundedBox.extension.z} };
+	tmpIsIntersec = IntersectSegmentQuad(seg, quadRight, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Quaternion qLeftQuad = QuaternionFromAxisAngle({ 0, 0, 1 }, PI * 0.5f);
+	Quad quadLeft = { Referential(Vector3Add(posRef, {-roundedBox.radius, roundedBox.extension.y / 2, -roundedBox.extension.z / 2}), qLeftQuad), {roundedBox.extension.y, roundedBox.extension.x, roundedBox.extension.z } };
+	tmpIsIntersec = IntersectSegmentQuad(seg, quadLeft, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Quaternion qTopQuad = QuaternionIdentity();
+	Quad quadTop = { Referential(Vector3Add(posRef, {roundedBox.extension.x / 2, roundedBox.extension.y + roundedBox.radius, -roundedBox.extension.z / 2}), qTopQuad), {roundedBox.extension.x, roundedBox.extension.y, roundedBox.extension.z } };
+	tmpIsIntersec = IntersectSegmentQuad(seg, quadTop, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	Quaternion qBottomQuad = QuaternionFromAxisAngle({ 0, 0, 1 }, PI);
+	Quad quadBottom = { Referential(Vector3Add(posRef, {roundedBox.extension.x / 2, -roundedBox.radius, -roundedBox.extension.z / 2}), qBottomQuad), {roundedBox.extension.x, roundedBox.extension.y, roundedBox.extension.z } };
+	tmpIsIntersec = IntersectSegmentQuad(seg, quadBottom, tmpInterPt, tmpInterNormal);
+	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		isIntersec = true;
+	}
+
+	return isIntersec;
+}
+*/
+#pragma endregion;
+
+#pragma region Camera;
+void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
+{
+	static Spherical sphPos = { 10.0f, PI / 4.0f, PI / 88.0f };
+
+	Spherical sphSpeed = { 4.0f, 0.08f, 0.08f };
+	Spherical sphDelta;
+
+	float rhoMin = 4;
+	float rhoMax = 40;
+
+	Vector2 mousePos;
+	Vector2 mouseVect;
+	static Vector2 prevMousePos = { 0,0 };
+
+	// Gestion de la souris 
+	mousePos = GetMousePosition(); // 1) récupération de la position de la souris
+	mouseVect = Vector2Subtract(mousePos, prevMousePos); // 2) calcul du vecteur de déplacement de la souris entre la position courante de la souris et la précédente
+	prevMousePos = mousePos; // 3) mise à jour de la position précédente de la souris avec la position courante
+
+	// 4) calcul du vecteur de déplacement de la caméra en coordonnées sphériques
+	sphDelta = CartesianToSpherical(camera->position);
+
+
+	sphDelta.rho += (GetMouseWheelMove() * deltaTime * sphSpeed.rho * sphPos.rho);
+	sphDelta.rho = Clamp(sphDelta.rho, rhoMin, rhoMax);
+
+	if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+		sphDelta.theta += mouseVect.x * deltaTime * sphSpeed.theta * sphPos.theta;
+	}
+
+	if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+		sphDelta.phi += mouseVect.y * deltaTime * sphSpeed.phi;
+		sphDelta.phi = Clamp(sphDelta.phi * RAD2DEG, 1, 179);
+
+		sphDelta.phi *= DEG2RAD;
+	}
+
+	camera->position = SphericalToCartesian(sphDelta);
+}
+#pragma endregion;
 
 int main(int argc, char* argv[])
 {
@@ -780,12 +1210,10 @@ int main(int argc, char* argv[])
 	float screenSizeCoef = .9f;
 	const int screenWidth = 1920 * screenSizeCoef;
 	const int screenHeight = 1080 * screenSizeCoef;
-
 	InitWindow(screenWidth, screenHeight, "ESIEE - E3FI - 2022 - 2023 - Maths 3D");
-
 	SetTargetFPS(60);
 
-	//CAMERA
+	// CAMERA
 	Vector3 cameraPos = { 8.0f, 15.0f, 14.0f };
 	Camera camera = { 0 };
 	camera.position = cameraPos;
@@ -820,7 +1248,7 @@ int main(int argc, char* argv[])
 		BeginMode3D(camera);
 		{			
 			//3D REFERENTIAL
-			DrawGrid(20, 1.0f);        // Draw a grid
+			DrawGrid(20, 1.0f);
 			DrawLine3D({ 0 }, { 0,10,0 }, DARKGRAY);
 			DrawSphere({ 10,0,0 }, .2f, RED);
 			DrawSphere({ 0,10,0 }, .2f, GREEN);
@@ -840,23 +1268,34 @@ int main(int argc, char* argv[])
 			);
 			ReferenceFrame ref3 = ReferenceFrame(
 				{ 0, 0, 0 },
-				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 2)
+				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), 0)
+			);
+			ReferenceFrame ref4 = ReferenceFrame(
+				{ 0, 0, 2 },
+				QuaternionIdentity()
 			);
 
 			// TESTS AFFICHAGE PRIMITIVES 3D
 			// Pour tester, décommenter les parties de code suivantes
 			// QUAD DISPLAY TEST
-			//Quad quad = { refBase,{4,0,4} };
+			//Quad quad = { ref1,{4,0,4} };
 			//MyDrawQuad(quad);
+
+			// temp (test des fnc LocalToGlobalVect...)
+			/*
+			Vector3 monPtOuVect = { 1, 1 ,0 };
+			std::cout << "monPtEnLocal=" << "\n" << monPtOuVect.x << "\n" << monPtOuVect.y << "\n" << monPtOuVect.z << "\n";
+			monPtOuVect = LocalToGlobalVect(monPtOuVect, quad.ref);
+			std::cout << "monPtEnGlobal=" << "\n" << monPtOuVect.x << "\n" << monPtOuVect.y << "\n" << monPtOuVect.z << "\n";
+			*/
 
 			// DISK DISPLAY TEST
 			//Disk d = { ref2, 5 };
 			//MyDrawDisk(d, 30);
 
 			// CYLINDER DISPLAY TEST
-			Cylinder c = { ref2, 4, 2};
+			//Cylinder c = { ref2, 4, 2};
 			//MyDrawCylinder(c, 10);
-			MyDrawCylinder2(c, 10);
 
 
 			// SPHERE DISPLAY TEST
@@ -866,39 +1305,51 @@ int main(int argc, char* argv[])
 			//Sphere s = { ref2, 4 };
 			//MyDrawPolygonSphere(s, 10, 10);
 
-
+			
 			//TESTS INTERSECTIONS
 			Vector3 interPt;
 			Vector3 interNormal;
 			float t;
 
-			//THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
+			// THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
-			//Segment segment = { {-5,8,0},{5,-8,3} };
-			//DrawLine3D(segment.pt1, segment.pt2, BLACK);
-			//MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			//MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			Segment segment = { {-5,8,0},{5,-8,3} };
+			DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
-			//// TEST LINE PLANE INTERSECTION
-			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
-			//* .5f)), 2 };
-			//// (on ne peut pas dessiner un plan avec raylib, du coup on rpz ca avec un quad)
-			//ReferenceFrame refQuad = { Vector3Scale(plane.normal, plane.d),
-			//QuaternionFromVector3ToVector3({0,1,0},plane.normal) };
-			//Quad quad = { refQuad,{10,1,10} };
-			//MyDrawQuad(quad);
-			//Line line = { segment.pt1,Vector3Subtract(segment.pt2,segment.pt1) };
+			// TEST LINE PLANE INTERSECTION
+			Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
+			* .5f)), 2 };
+			// (on ne peut pas dessiner un plan avec raylib, du coup on rpz ca avec un quad)
+			ReferenceFrame refQuad = { Vector3Scale(plane.normal, plane.d), QuaternionFromVector3ToVector3({0,1,0},plane.normal) };
+			Quad quad = { refQuad,{10,1,10} };
+			MyDrawQuad(quad);
+			Line line = { segment.pt1,Vector3Subtract(segment.pt2,segment.pt1) };
 
-			///*if (IntersectLinePlane(line, plane, t, interPt, interNormal))
-			//{
-			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-			//}*/
-			//if (IntersectSegmentPlane(segment, plane, t, interPt, interNormal))
+			//if (IntersectLinePlane(line, plane, t, interPt, interNormal))
 			//{
 			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			//}
+			// 
+			//// TEST SEGM PLANE INTERSECTION
+			if (IntersectSegmentPlane(segment, plane, t, interPt, interNormal))
+			{
+				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			}
+
+			// TEST SEGM CYLINDER INTERSECTION
+			/*
+			Cylinder c = { ref3, 4, 2};
+			MyDrawCylinder(c, 10, true);
+			if (InterSegmentFiniteCylinder(segment, c, interPt, interNormal)) {
+				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			}
+			*/
+			
 
 		}
 		EndMode3D();
