@@ -774,24 +774,15 @@ bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
 	return true;
 }
 
-/**
-*	@brief Fonction d'intersection : Segment - Quad
-*	@param seg Segment qui peut intersecter le quad
-*	@param quad Quad qui doit être intersecté par le segment
-*	@param interPt Adresse où l'on place le point d'intersection entre le quad et le segment
-*	@param interNormal Adresse où l'on place le vecteur normal au quad au point d'intersection
-*	@return Vrai si collision, sinon faux
-*/
-
 /// <summary>
-/// 
+/// Indique s'il y a intersection entre le segment et le Quad donnés
 /// </summary>
-/// <param name="seg"></param>
-/// <param name="quad"></param>
-/// <param name="t"></param>
-/// <param name="interPt"></param>
-/// <param name="interNormal"></param>
-/// <returns></returns>
+/// <param name="seg">Le segment à tester</param>
+/// <param name="quad">Le Quad à tester</param>
+/// <param name="t">Si intersection detecté, indique la position du point d'intersection dans le segment. t est compris entre 0 et 1</param>
+/// <param name="interPt">Si intersection detecté, indique la position du point d'intersection dans le monde</param>
+/// <param name="interNormal">Si intersection detecté, indique le vecteur normal à la surface de la primitive, où est localisé interPt</param>
+/// <returns>True si l'intersection existe, False sinon</returns>
 bool IntersectSegmentQuad(Segment seg, Quad quad, float& t, Vector3& interPt, Vector3& interNormal) {
 	Plane superimposedPlane;
 	Vector3 n = quad.ref.j;
@@ -808,7 +799,7 @@ bool IntersectSegmentQuad(Segment seg, Quad quad, float& t, Vector3& interPt, Ve
 		return false;
 }
 
-
+// réparer la signature de la méthode (* -> &) pour les pts de qualité du code
 bool IntersectSegmentSphere(Segment seg, Sphere sph, float* t, Vector3* interPt, Vector3* interNormal) {
 
 	Vector3 vecteurAB = Vector3Subtract(seg.pt2, seg.pt1); // vecteur AB
@@ -841,7 +832,7 @@ bool IntersectSegmentSphere(Segment seg, Sphere sph, float* t, Vector3* interPt,
 // todo : rendre fonctionnel l'argument t
 // ptet aussi que y'a moyen de la faire fonctionner avec plane
 /*
-bool InterSegmentDisk(Segment seg, Disk disk, float& t, Vector3& interPt, Vector3& interNormal) {
+bool IntersectSegmentDisk(Segment seg, Disk disk, float& t, Vector3& interPt, Vector3& interNormal) {
 	float distanceDiskOrigin = Vector3Distance({ 0,0,0 }, disk.ref.origin);
 	Plane planeOfDisk = { disk.ref.j, distanceDiskOrigin };
 
@@ -855,7 +846,7 @@ bool InterSegmentDisk(Segment seg, Disk disk, float& t, Vector3& interPt, Vector
 }
 */
 
-// todo : rendre fonctionnel l'argument t
+// penser à tester l'argument t
 bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& interPt, Vector3& interNormal) {
 
 	Vector3 cylDir = Vector3RotateByQuaternion({ 0,1,0 }, cyl.ref.q);
@@ -896,7 +887,7 @@ bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& inte
 	double c = Vector3DotProduct(AOxAB, AOxAB) - (r * r * ab2);
 	double d = b * b - 4 * a * c;
 	if (d <= 0) return false;
-	t = (-b - sqrt(d)) / (2 * a);				// c'est ca t (faire un print à l'exec pour vérifier mais ca doit etre ca)
+	t = (-b - sqrt(d)) / (2 * a);		// tester
 	//std::cout << "t=" << t << "\n";
 
 	if (time < 0) return false;
@@ -920,31 +911,33 @@ bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& inte
 bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& interPt, Vector3& interNormal) {
 	bool isIntersec = false;
 	bool tmpIsIntersec = false;
-	interPt = { FLT_MAX };
+	interPt = { FLT_MAX };			// tej ftl
 	interNormal = { FLT_MAX };
 
-	Vector3 up = LocalToGlobalPos({ 0, capsule.height, 0 }, capsule.referential);
-	Vector3 down = LocalToGlobalPos({ 0, 0, 0 }, capsule.referential);
+	Vector3 up = LocalToGlobalPos({ 0, capsule.halfHeight, 0 }, capsule.ref);
+	Vector3 down = LocalToGlobalPos({ 0, - capsule.halfHeight, 0 }, capsule.ref);		// !!!!!!!!!!! : tester avec la valeur d'origine : 0
 
-	// Quaternions utiles
-	Quaternion qUp = QuaternionFromAxisAngle({ 0, 0, 1 }, 0.5 * PI);
-	Quaternion qDown = QuaternionFromAxisAngle({ 0, 0, 1 }, 1.5 * PI);
+	// Quaternions utiles (à suppr si j'arrive à faire marcher sans)
+	Quaternion qUp = QuaternionFromAxisAngle({ 0, 0, 1 }, 1/2 * PI);
+	Quaternion qDown = QuaternionFromAxisAngle({ 0, 0, 1 }, 3/2 * PI);
 	Quaternion qIdentity = QuaternionIdentity();
 
 	// 2 sphères + 1 cylindre
-	Referential ref = Referential(down);
-	ref.RotateByQuaternion(capsule.referential.q);
-	Cylinder cylinder = Cylinder(ref, capsule.radius, capsule.height);
+	ReferenceFrame ref = ReferenceFrame(capsule.ref.origin, capsule.ref.q);			// !!!!!!!!!!! : tester avec la val stock : down
+	Cylinder cylinder = { ref, capsule.halfHeight, capsule.radius };
 	cylinder.UpdateCylinder();
 
-	Sphere sphereUp = { up, capsule.radius };
-	Sphere sphereDown = { down, capsule.radius };
+	Sphere sphereUp = { {up, qIdentity }, capsule.radius };
+	Sphere sphereDown = { {down, qIdentity}, capsule.radius };
 
 	Vector3 tmpInterPt;
 	Vector3 tmpInterNormal;
+	float tmpT;
+
+	// OBB à l'avenir
 
 	// Test de collision avec le cylindre
-	tmpIsIntersec = InterSegmentFiniteCylinder(seg, cylinder, tmpInterPt, tmpInterNormal);
+	tmpIsIntersec = IntersectSegmentCylinder(seg, cylinder, tmpT, tmpInterPt, tmpInterNormal);
 	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
 		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
 		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
@@ -952,7 +945,7 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 	}
 
 	// Test de collision avec la première sphère
-	tmpIsIntersec = InterSegSphere(seg, sphereUp, tmpInterPt, tmpInterNormal);
+	tmpIsIntersec = IntersectSegmentSphere(seg, sphereUp, &tmpT, &tmpInterPt, &tmpInterNormal);
 	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
 		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
 		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
@@ -960,7 +953,7 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 	}
 
 	// Test de collision avec la seconde sphère
-	tmpIsIntersec = InterSegSphere(seg, sphereDown, tmpInterPt, tmpInterNormal);
+	tmpIsIntersec = IntersectSegmentSphere(seg, sphereDown, &tmpT, &tmpInterPt, &tmpInterNormal);
 	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
 		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
 		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
@@ -970,14 +963,14 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 	return isIntersec;
 }
 
-/**
-*	@brief Fonction d'intersection : Segment - RoundedBox
-*	@param seg Segment qui peut intersecter la RoundedBox
-*	@param roundedBox RoundedBox qui doit être intersecté par le segment
-*	@param interPt Adresse où l'on place le point d'intersection entre la RoundedBox et le segment
-*	@param interNormal Adresse où l'on place le vecteur normal à la RoundedBox au point d'intersection
-*	@return Vrai si collision, sinon faux
-*/
+/// <summary>
+/// 
+/// </summary>
+/// <param name="seg"></param>
+/// <param name="roundedBox"></param>
+/// <param name="interPt"></param>
+/// <param name="interNormal"></param>
+/// <returns></returns>
 /*
 bool IntersecSegRoundedBox(Segment seg, RoundedBox roundedBox, Vector3& interPt, Vector3& interNormal) {
 	bool tmpIsIntersec = false;
@@ -996,6 +989,8 @@ bool IntersecSegRoundedBox(Segment seg, RoundedBox roundedBox, Vector3& interPt,
 	Quaternion qLeft = QuaternionFromAxisAngle({ 1, 0, 0 }, -PI * 0.5f);
 	Quaternion qFront = QuaternionFromAxisAngle({ 0, 0, 1 }, -PI * 0.5f);
 	Quaternion qUp = QuaternionIdentity();
+
+	// OBB à l'avenir
 
 
 	//		TEST D'INTERSECTION DES CAPSULES DE LA ROUNDEDBOX
