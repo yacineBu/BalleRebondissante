@@ -326,16 +326,41 @@ void MyDrawQuad(Quad quad, bool drawPolygon = true, bool drawWireframe = true,
 }
 
 // BOX
-void MyDrawPolygonBox(Box box, Color color) {
-	std::vector<Quad> boxQuads;
+void MyDrawPolygonBox(Box box, Color color = LIGHTGRAY) {
 
-	for each (Quad quad in boxQuads)
-	{
-		MyDrawPolygonQuad(quad, color);
-	}
+	rlPushMatrix();
+
+	rlTranslatef(box.ref.origin.x, box.ref.origin.y, box.ref.origin.z);
+	Vector3 vect;
+	float angle;
+	QuaternionToAxisAngle(box.ref.q, &vect, &angle);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+	rlScalef(box.extents.x, box.extents.y, box.extents.z);
+	
+	std::vector<Quad> boxQuads;
+	float piOn2 = PI / 2;
+	Vector3 extents = { 1, 0, 1 };
+	// La face normale à l'axe X, situé dans la partie positive de l'axe
+	Quad sideNormalToXPositive = { {{1, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, -piOn2)}, extents };			// !!!!!!!!!!!!!! soit 1, soit 0,5
+	// La face normale à l'axe X, situé dans la partie négative de l'axe
+	Quad sideNormalToXNegative = { {{-1, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, piOn2)}, extents };
+	// etc...
+	Quad sideNormalToYPositive = { {{0, 1, 0}, QuaternionIdentity()}, extents };
+	Quad sideNormalToYNegative = { {{0, -1, 0}, QuaternionFromAxisAngle({0, 0, 1}, PI)}, extents };
+	Quad sideNormalToZPositive = { {{0, 0, 1 }, QuaternionFromAxisAngle({1, 0, 0}, piOn2)}, extents };
+	Quad sideNormalToZNegative = { {{0, 0, -1 }, QuaternionFromAxisAngle({1, 0, 0}, -piOn2)}, extents };
+
+	MyDrawPolygonQuad(sideNormalToXPositive, color);
+	MyDrawPolygonQuad(sideNormalToXNegative, color);
+	MyDrawPolygonQuad(sideNormalToYPositive, color);
+	MyDrawPolygonQuad(sideNormalToYNegative, color);
+	MyDrawPolygonQuad(sideNormalToZPositive, color);
+	MyDrawPolygonQuad(sideNormalToZNegative, color);
+
+	rlPopMatrix();
 }
 
-void MyDrawWireframeBox(Quad box, Color color) {
+void MyDrawWireframeBox(Quad box, Color color = DARKGRAY) {
 	std::vector<Quad> boxQuads;
 
 	for each (Quad quad in boxQuads)
@@ -355,7 +380,7 @@ void MyDrawBox(Box box, bool drawPolygon = true, bool drawWireframe = true,
 /// Méthode utilisé par les méthodes de dessin du disque et du cylindre.
 /// </summary>
 /// <param name="nSectors"></param>
-/// <returns></returns>
+/// <returns>Tableau de points</returns>
 std::vector<Cylindrical> computeDiskPoints(int nSectors) {
 	float pitch = 2 * PI / nSectors;
 	std::vector<Cylindrical> diskPointsAtPerim;
@@ -450,76 +475,14 @@ void MyDrawDisk(Disk disk, int nSectors, bool drawPolygon = true, bool drawWiref
 	if (drawWireframe) MyDrawWireframeDisk(disk, nSectors, wireframeColor);
 }
 
-// CYLINDRE
 
-void MyDrawCylinder2(Cylinder cyl, int nSegmentsTheta, Color color = DARKGRAY) {
-	int sides = 100;
-	int numVertex = sides * 6;
-	if (rlCheckBufferLimit(numVertex)) rlglDraw();
-	rlPushMatrix();
-	Vector3 position = cyl.ref.origin;
-	rlTranslatef(position.x, position.y, position.z);
-
-	//ROTATION
-	Vector3 vect;
-	float angle;
-	QuaternionToAxisAngle(cyl.ref.q, &vect, &angle);
-	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
-
-	rlBegin(RL_TRIANGLES);
-	rlColor4ub(color.r, color.g, color.b, color.a);
-	float radius = cyl.radius;
-	float height = cyl.halfHeight;
-
-	Vector3 top = { 0,height * .5f,0 };
-	Vector3 bottom = { 0,-height * .5f,0 };
-
-
-	// Draw Body -------------------------------------------------------------------------------------
-	for (int i = 0; i < 360; i += 360 / sides)
-	{
-
-		rlVertex3f(sinf(DEG2RAD * i) * radius, bottom.y, cosf(DEG2RAD * i) * radius); //Bottom Left
-		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, bottom.y, cosf(DEG2RAD * (i + 360 / sides)) * radius); //Bottom Right
-		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, top.y, cosf(DEG2RAD * (i + 360 / sides)) * radius); //Top Right
-		rlVertex3f(sinf(DEG2RAD * i) * radius, top.y, cosf(DEG2RAD * i) * radius); //Top Left
-		rlVertex3f(sinf(DEG2RAD * i) * radius, bottom.y, cosf(DEG2RAD * i) * radius); //Bottom Left
-		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, top.y, cosf(DEG2RAD * (i + 360 / sides)) * radius); //Top Right
-	}
-	Disk dT = Disk{};
-	dT.ref.origin = { 0,height * 0.5f,0 };
-	dT.radius = radius;
-	dT.ref.q = cyl.ref.q;
-	//
-	// TODO racalculer la rotation pour face la base
-	//MyDrawDisk(dT, nSegmentsTheta, color);
-
-	// Draw Cap --------------------------------------------------------------------------------------
-	for (int i = 0; i < 360; i += 360 / sides)
-	{
-		rlVertex3f(0, top.y, 0);
-		rlVertex3f(sinf(DEG2RAD * i) * radius, top.y, cosf(DEG2RAD * i) * radius);
-		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, top.y, cosf(DEG2RAD * (i + 360 / sides)) * radius);
-	}
-	// Draw Base -----------------------------------------------------------------------------------------
-	for (int i = 0; i < 360; i += 360 / sides)
-	{
-		rlVertex3f(0, bottom.y, 0);
-		rlVertex3f(sinf(DEG2RAD * (i + 360 / sides)) * radius, bottom.y, cosf(DEG2RAD * (i + 360 / sides)) * radius);
-		rlVertex3f(sinf(DEG2RAD * i) * radius, bottom.y, cosf(DEG2RAD * i) * radius);
-	}
-	rlEnd();
-	rlPopMatrix();
-}
-
-
-// drawCaps indique probablement si oui ou non on veut que le cylindre soit fermé par des disques
 void MyDrawPolygonCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
 	false, Color color = LIGHTGRAY) {
 	if (nSectors < 3) {
 		return;
 	}
 
+	// Uniquement pour le cylindre, les points du disk sont déjà gérés par la méthode de dessin du disk
 	int numVertex = nSectors * 6;
 	if (rlCheckBufferLimit(numVertex)) rlglDraw();
 
@@ -549,26 +512,16 @@ void MyDrawPolygonCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
 	}
 	rlEnd();
 
-	rlPopMatrix();
-
+	// Imbrication de la transformation dans l'espace
 	if (drawCaps) {
-		Disk top, bottom;
+		Disk top = { {{0, 0.5, 0},  QuaternionIdentity()}, 1};
+		Disk bottom = { {{0, -0.5, 0}, QuaternionFromAxisAngle({1, 0, 0}, PI)}, 1};
 
-		// Utile pour positionner le disk haut et le disque bas
-		float halfHeightDiv2 = cylinder.halfHeight / 2;
-		Vector3 vectorFromCylRefToDiskRef = Vector3Multiply(cylinder.ref.j, { halfHeightDiv2, halfHeightDiv2, halfHeightDiv2 });
-
-		Vector3 originTop = Vector3Add(cylinder.ref.origin, vectorFromCylRefToDiskRef);
-		Vector3 originBottom = Vector3Subtract(cylinder.ref.origin, vectorFromCylRefToDiskRef);
-
-		top = { {originTop, cylinder.ref.q}, cylinder.radius };
-		Vector3 test = QuaternionToEuler(cylinder.ref.q);
-		test.x += PI;		// chercher how to flip orientation of 3d object quaterion
-		bottom = { {originBottom, QuaternionFromEuler(test.x, test.y, test.z)}, cylinder.radius};
-		
 		MyDrawPolygonDisk(top, nSectors);
 		MyDrawPolygonDisk(bottom, nSectors);
 	}
+
+	rlPopMatrix();
 }
 
 void MyDrawWireframeCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
@@ -610,12 +563,20 @@ void MyDrawWireframeCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
 	}
 	rlEnd();
 
+	// Imbrication de la transformation dans l'espace
+	if (drawCaps) {
+		Disk top = { {{0, 0.5, 0},  QuaternionIdentity()}, 1 };
+		Disk bottom = { {{0, -0.5, 0}, QuaternionFromAxisAngle({1, 0, 0}, PI)}, 1 };
+
+		MyDrawWireframeDisk(top, nSectors, color);
+		MyDrawWireframeDisk(bottom, nSectors, color);
+	}
+
 	rlPopMatrix();
 }
 
-void MyDrawCylinder(Cylinder cylinder, int nSectors, bool drawCaps = false, bool
-	drawPolygon = true, bool drawWireframe = true, Color polygonColor = LIGHTGRAY,
-	Color wireframeColor = DARKGRAY) {
+void MyDrawCylinder(Cylinder cylinder, int nSectors, bool drawCaps = false, bool drawPolygon = true, bool drawWireframe = true,
+	Color polygonColor = LIGHTGRAY, Color wireframeColor = DARKGRAY) {
 	if (drawPolygon) MyDrawPolygonCylinder(cylinder, nSectors, drawCaps, polygonColor);
 	if (drawWireframe) MyDrawWireframeCylinder(cylinder, nSectors, drawCaps, wireframeColor);
 }
@@ -786,8 +747,7 @@ bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
 bool IntersectSegmentQuad(Segment seg, Quad quad, float& t, Vector3& interPt, Vector3& interNormal) {
 	Plane superimposedPlane;
 	Vector3 n = quad.ref.j;
-	Vector3 M = Vector3Scale(n, );
-	float d = Vector3Length(Vector3Add(quad.ref.origin, ));		// j'suis pas sur que ce soit la fonction norme !!!!!!!!!!!!!!!!!!
+	float d = Vector3DotProduct(n, quad.ref.origin);
 	superimposedPlane = { n, d};
 
 	bool isIntersection = IntersectSegmentPlane(seg, superimposedPlane, t, interPt, interNormal);
@@ -815,6 +775,8 @@ bool IntersectSegmentSphere(Segment seg, Sphere sph, float* t, Vector3* interPt,
 	float c = omegaADotOmegaA - rAuCarre; // c = OmégaA² - r²
 
 	float delta = pow(b, 2.0) - (4 * a * c);
+
+	if (delta < 0) return false;
 
 	*t = (-b - sqrtf(delta)) / (2 * a);
 
@@ -925,7 +887,7 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 	// 2 sphères + 1 cylindre
 	ReferenceFrame ref = ReferenceFrame(capsule.ref.origin, capsule.ref.q);			// !!!!!!!!!!! : tester avec la val stock : down
 	Cylinder cylinder = { ref, capsule.halfHeight, capsule.radius };
-	cylinder.UpdateCylinder();
+	//cylinder.UpdateCylinder();
 
 	Sphere sphereUp = { {up, qIdentity }, capsule.radius };
 	Sphere sphereDown = { {down, qIdentity}, capsule.radius };
@@ -963,197 +925,6 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 	return isIntersec;
 }
 
-/// <summary>
-/// 
-/// </summary>
-/// <param name="seg"></param>
-/// <param name="roundedBox"></param>
-/// <param name="interPt"></param>
-/// <param name="interNormal"></param>
-/// <returns></returns>
-/*
-bool IntersecSegRoundedBox(Segment seg, RoundedBox roundedBox, Vector3& interPt, Vector3& interNormal) {
-	bool tmpIsIntersec = false;
-	bool isIntersec = false;
-	interPt = { FLT_MAX };
-	interNormal = { FLT_MAX };
-	Vector3 tmpInterPt;
-	Vector3 tmpInterNormal;
-
-	// L'origine de la RoundedBox est originellement positionnée dans la sphère commune à l'intersection des 3 premières capsules
-	// On doit donc les décaler d'une extension négative en X et Y, et positive en Z
-	// Considérons qu'une 'roundedBox.extension' est ici la longueur du cylindre de la capsule (donc x2 par rapport à une extension réelle)
-	Vector3 posRef = Vector3Add(roundedBox.ref.origin, { -roundedBox.extension.x / 2, -roundedBox.extension.y / 2, roundedBox.extension.z / 2 });
-
-	// Quaternions utiles
-	Quaternion qLeft = QuaternionFromAxisAngle({ 1, 0, 0 }, -PI * 0.5f);
-	Quaternion qFront = QuaternionFromAxisAngle({ 0, 0, 1 }, -PI * 0.5f);
-	Quaternion qUp = QuaternionIdentity();
-
-	// OBB à l'avenir
-
-
-	//		TEST D'INTERSECTION DES CAPSULES DE LA ROUNDEDBOX
-	// Une capsule sans quaternion est positionné vers le haut, donc ici on rotate la capsule sur l'axe x, de pi/2 pour qu'elle se couche parallèle à l'axe z
-	Capsule capsLeftBottom = { Referential(posRef, qLeft), roundedBox.radius, roundedBox.extension.z };
-	// Test d'intersection
-	tmpIsIntersec = InterSegmentCapsule(seg, capsLeftBottom, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		// Mise en place des valeurs de la position d'intersection et sa normale
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsFrontBottom = { Referential(posRef, qFront), roundedBox.radius, roundedBox.extension.x };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsFrontBottom, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsFrontLeft = { Referential(posRef, qUp), roundedBox.radius, roundedBox.extension.y };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsFrontLeft, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsFrontTop = { Referential(Vector3Add(posRef, { 0, roundedBox.extension.y, 0 }), qFront), roundedBox.radius, roundedBox.extension.x };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsFrontTop, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsFrontRight = { Referential(Vector3Add(posRef, {roundedBox.extension.x, 0, 0}), qUp), roundedBox.radius, roundedBox.extension.y };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsFrontRight, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsRightBottom = { Referential(Vector3Add(posRef, { roundedBox.extension.x, 0, 0 }), qLeft), roundedBox.radius, roundedBox.extension.z };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsRightBottom, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsRightTop = { Referential(Vector3Add(posRef, { roundedBox.extension.x, roundedBox.extension.y, 0 }), qLeft), roundedBox.radius, roundedBox.extension.z };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsRightTop, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsLeftTop = { Referential(Vector3Add(posRef, { 0, roundedBox.extension.y, 0 }), qLeft), roundedBox.radius, roundedBox.extension.z };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsLeftTop, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsBackBottom = { Referential(Vector3Add(posRef, {0, 0, -roundedBox.extension.z}), qFront), roundedBox.radius, roundedBox.extension.x };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsBackBottom, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsBackTop = { Referential(Vector3Add(posRef, { 0, roundedBox.extension.y, -roundedBox.extension.z }), qFront), roundedBox.radius, roundedBox.extension.x };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsBackTop, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsBackLeft = { Referential(Vector3Add(posRef, { 0, 0, -roundedBox.extension.z }), qUp), roundedBox.radius, roundedBox.extension.y };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsBackLeft, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Capsule capsBackRight = { Referential(Vector3Add(posRef, { roundedBox.extension.x, 0, -roundedBox.extension.z }), qUp), roundedBox.radius, roundedBox.extension.y };
-	tmpIsIntersec = InterSegmentCapsule(seg, capsBackRight, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-	//		*fin* TEST D'INTERSECTION DES CAPSULES DE LA ROUNDEDBOX
-
-
-	// Un quad sans quaternion est positionné vers le haut (sa normale est orientée selon y),donc ici on rotate le quad sur l'axe x, de pi/2 pour qu'elle se place droit avec sa normale parallèle à l'axe z
-	Quaternion qFrontQuad = QuaternionFromAxisAngle({ 1, 0, 0 }, PI * 0.5f);
-	Quad quadFront = { Referential(Vector3Add(posRef, {roundedBox.extension.x / 2, roundedBox.extension.y / 2, roundedBox.radius}), qFrontQuad), {roundedBox.extension.x, roundedBox.extension.z, roundedBox.extension.y } };
-	// Test d'intersection
-	tmpIsIntersec = IntersectSegmentQuad(seg, quadFront, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Quaternion qBackQuad = QuaternionFromAxisAngle({ 1, 0, 0 }, -PI * 0.5f);
-	Quad quadBack = { Referential(Vector3Add(posRef, {roundedBox.extension.x / 2,  roundedBox.extension.y / 2, -(roundedBox.extension.z + roundedBox.radius)}), qBackQuad), {roundedBox.extension.x, roundedBox.extension.z, roundedBox.extension.y} };
-	tmpIsIntersec = IntersectSegmentQuad(seg, quadBack, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Quaternion qRightQuad = QuaternionFromAxisAngle({ 0, 0, 1 }, -PI * 0.5f);
-	Quad quadRight = { Referential(Vector3Add(posRef, {roundedBox.extension.x + roundedBox.radius, roundedBox.extension.y / 2, -roundedBox.extension.z / 2}), qRightQuad), {roundedBox.extension.y, roundedBox.extension.x, roundedBox.extension.z} };
-	tmpIsIntersec = IntersectSegmentQuad(seg, quadRight, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Quaternion qLeftQuad = QuaternionFromAxisAngle({ 0, 0, 1 }, PI * 0.5f);
-	Quad quadLeft = { Referential(Vector3Add(posRef, {-roundedBox.radius, roundedBox.extension.y / 2, -roundedBox.extension.z / 2}), qLeftQuad), {roundedBox.extension.y, roundedBox.extension.x, roundedBox.extension.z } };
-	tmpIsIntersec = IntersectSegmentQuad(seg, quadLeft, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Quaternion qTopQuad = QuaternionIdentity();
-	Quad quadTop = { Referential(Vector3Add(posRef, {roundedBox.extension.x / 2, roundedBox.extension.y + roundedBox.radius, -roundedBox.extension.z / 2}), qTopQuad), {roundedBox.extension.x, roundedBox.extension.y, roundedBox.extension.z } };
-	tmpIsIntersec = IntersectSegmentQuad(seg, quadTop, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	Quaternion qBottomQuad = QuaternionFromAxisAngle({ 0, 0, 1 }, PI);
-	Quad quadBottom = { Referential(Vector3Add(posRef, {roundedBox.extension.x / 2, -roundedBox.radius, -roundedBox.extension.z / 2}), qBottomQuad), {roundedBox.extension.x, roundedBox.extension.y, roundedBox.extension.z } };
-	tmpIsIntersec = IntersectSegmentQuad(seg, quadBottom, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
-	}
-
-	return isIntersec;
-}
-*/
 #pragma endregion;
 
 #pragma region Camera;
@@ -1276,21 +1047,17 @@ int main(int argc, char* argv[])
 			//Quad quad = { ref1,{4,0,4} };
 			//MyDrawQuad(quad);
 
-			// temp (test des fnc LocalToGlobalVect...)
-			/*
-			Vector3 monPtOuVect = { 1, 1 ,0 };
-			std::cout << "monPtEnLocal=" << "\n" << monPtOuVect.x << "\n" << monPtOuVect.y << "\n" << monPtOuVect.z << "\n";
-			monPtOuVect = LocalToGlobalVect(monPtOuVect, quad.ref);
-			std::cout << "monPtEnGlobal=" << "\n" << monPtOuVect.x << "\n" << monPtOuVect.y << "\n" << monPtOuVect.z << "\n";
-			*/
+			// BOX DISPLAY TEST
+			Box box = { refBase, {4, 4, 8} };
+			MyDrawPolygonBox(box);
 
 			// DISK DISPLAY TEST
 			//Disk d = { ref2, 5 };
 			//MyDrawDisk(d, 30);
 
 			// CYLINDER DISPLAY TEST
-			//Cylinder c = { ref2, 4, 2};
-			//MyDrawCylinder(c, 10);
+			//Cylinder c = { ref1, 4, 2};
+			//MyDrawCylinder(c, 10, true);
 
 
 			// SPHERE DISPLAY TEST
@@ -1308,19 +1075,19 @@ int main(int argc, char* argv[])
 
 			// THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
-			Segment segment = { {-5,8,0},{5,-8,3} };
-			DrawLine3D(segment.pt1, segment.pt2, BLACK);
-			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			//Segment segment = { {-5,8,0},{5,-8,3} };
+			//DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			//MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			//MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
 			// TEST LINE PLANE INTERSECTION
-			Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
-			* .5f)), 2 };
-			// (on ne peut pas dessiner un plan avec raylib, du coup on rpz ca avec un quad)
-			ReferenceFrame refQuad = { Vector3Scale(plane.normal, plane.d), QuaternionFromVector3ToVector3({0,1,0},plane.normal) };
-			Quad quad = { refQuad,{10,1,10} };
-			MyDrawQuad(quad);
-			Line line = { segment.pt1,Vector3Subtract(segment.pt2,segment.pt1) };
+			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
+			//* .5f)), 2 };
+			//// (on ne peut pas dessiner un plan avec raylib, du coup on rpz ca avec un quad)
+			//ReferenceFrame refQuad = { Vector3Scale(plane.normal, plane.d), QuaternionFromVector3ToVector3({0,1,0},plane.normal) };
+			//Quad quad = { refQuad,{10,1,10} };
+			//MyDrawQuad(quad);
+			//Line line = { segment.pt1,Vector3Subtract(segment.pt2,segment.pt1) };
 
 			//if (IntersectLinePlane(line, plane, t, interPt, interNormal))
 			//{
@@ -1329,17 +1096,25 @@ int main(int argc, char* argv[])
 			//}
 			// 
 			//// TEST SEGM PLANE INTERSECTION
-			if (IntersectSegmentPlane(segment, plane, t, interPt, interNormal))
+			/*if (IntersectSegmentPlane(segment, plane, t, interPt, interNormal))
 			{
 				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-			}
+			}*/
+
+			// TEST SEGM QUAD INTERSECTION
+			//Quad q = { ref3, {10, 0, 5} };
+			//MyDrawQuad(q);
+			//if (IntersectSegmentQuad(segment, q, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
 
 			// TEST SEGM CYLINDER INTERSECTION
 			/*
 			Cylinder c = { ref3, 4, 2};
 			MyDrawCylinder(c, 10, true);
-			if (InterSegmentFiniteCylinder(segment, c, interPt, interNormal)) {
+			if (IntersectSegmentCylinder(segment, c, interPt, interNormal)) {
 				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			}
