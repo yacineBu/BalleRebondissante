@@ -337,7 +337,6 @@ void MyDrawPolygonBox(Box box, Color color = LIGHTGRAY) {
 	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
 	rlScalef(box.extents.x, box.extents.y, box.extents.z);
 	
-	std::vector<Quad> boxQuads;
 	float piOn2 = PI / 2;
 	Vector3 extents = { 1, 0, 1 };
 	// La face normale à l'axe X, situé dans la partie positive de l'axe
