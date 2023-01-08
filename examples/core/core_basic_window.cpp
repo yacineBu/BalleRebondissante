@@ -26,6 +26,7 @@
 #include <float.h>
 #include <vector>
 #include <iostream>
+#include <map>
 
 #if defined(PLATFORM_DESKTOP)
 #define GLSL_VERSION            330
@@ -340,7 +341,7 @@ void MyDrawPolygonBox(Box box, Color color = LIGHTGRAY) {
 	float piOn2 = PI / 2;
 	Vector3 extents = { 1, 0, 1 };
 	// La face normale à l'axe X, situé dans la partie positive de l'axe
-	Quad sideNormalToXPositive = { {{1, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, -piOn2)}, extents };			// !!!!!!!!!!!!!! soit 1, soit 0,5
+	Quad sideNormalToXPositive = { {{1, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, -piOn2)}, extents };
 	// La face normale à l'axe X, situé dans la partie négative de l'axe
 	Quad sideNormalToXNegative = { {{-1, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, piOn2)}, extents };
 	// etc...
@@ -359,34 +360,55 @@ void MyDrawPolygonBox(Box box, Color color = LIGHTGRAY) {
 	rlPopMatrix();
 }
 
-void MyDrawWireframeBox(Quad box, Color color = DARKGRAY) {
-	std::vector<Quad> boxQuads;
+void MyDrawWireframeBox(Box box, Color color = DARKGRAY) {
+	rlPushMatrix();
 
-	for each (Quad quad in boxQuads)
-	{
-		MyDrawWireframeQuad(quad, color);
-	}
+	rlTranslatef(box.ref.origin.x, box.ref.origin.y, box.ref.origin.z);
+	Vector3 vect;
+	float angle;
+	QuaternionToAxisAngle(box.ref.q, &vect, &angle);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+	rlScalef(box.extents.x, box.extents.y, box.extents.z);
+
+	float piOn2 = PI / 2;
+	Vector3 extents = { 1, 0, 1 };
+	Quad sideNormalToXPositive = { {{1, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, -piOn2)}, extents };
+	Quad sideNormalToXNegative = { {{-1, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, piOn2)}, extents };
+	Quad sideNormalToYPositive = { {{0, 1, 0}, QuaternionIdentity()}, extents };
+	Quad sideNormalToYNegative = { {{0, -1, 0}, QuaternionFromAxisAngle({0, 0, 1}, PI)}, extents };
+	Quad sideNormalToZPositive = { {{0, 0, 1 }, QuaternionFromAxisAngle({1, 0, 0}, piOn2)}, extents };
+	Quad sideNormalToZNegative = { {{0, 0, -1 }, QuaternionFromAxisAngle({1, 0, 0}, -piOn2)}, extents };
+
+	MyDrawWireframeQuad(sideNormalToXPositive, color);
+	MyDrawWireframeQuad(sideNormalToXNegative, color);
+	MyDrawWireframeQuad(sideNormalToYPositive, color);
+	MyDrawWireframeQuad(sideNormalToYNegative, color);
+	MyDrawWireframeQuad(sideNormalToZPositive, color);
+	MyDrawWireframeQuad(sideNormalToZNegative, color);
+
+	rlPopMatrix();
 }
 
 void MyDrawBox(Box box, bool drawPolygon = true, bool drawWireframe = true,
 	Color polygonColor = LIGHTGRAY, Color wireframeColor = DARKGRAY) {
-
+	if (drawPolygon) MyDrawPolygonBox(box, polygonColor);
+	if (drawWireframe) MyDrawWireframeBox(box, wireframeColor);
 }
 
 /// <summary>
 /// Créer le tableau qui contient les points du disque. Le nombre de points est en fonction de nSectors.
 /// On fait ca en utilisant le système de coordonnées cylindrique (ca facilite les choses, seulement la coordonnée teta est à modifier).
-/// Méthode utilisé par les méthodes de dessin du disque et du cylindre.
+/// Méthode utilisée par les méthodes de dessin du disque et du cylindre.
 /// </summary>
-/// <param name="nSectors"></param>
-/// <returns>Tableau de points</returns>
+/// <param name="nSectors">Le nombre de secteurs voulu être dessinés pour un disque ou un cylindre</param>
+/// <returns>Tableau de points en coordonnées cylindriques</returns>
 std::vector<Cylindrical> computeDiskPoints(int nSectors) {
 	float pitch = 2 * PI / nSectors;
 	std::vector<Cylindrical> diskPointsAtPerim;
 	for (int i = 0; i < nSectors; i++) {
 		diskPointsAtPerim.push_back({ 1, i * pitch, 0 });
 	}
-	diskPointsAtPerim.push_back({ 1, 0, 0 });		// On termine le tableau par une duplication du tout premier point du disk (pratique pour le moment où on dessine le disk)
+	diskPointsAtPerim.push_back({ 1, 0, 0 });		// On termine le tableau par une duplication du tout premier point (pratique pour le moment où on dessine)
 
 	return diskPointsAtPerim;
 }
@@ -744,18 +766,82 @@ bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
 /// <param name="interNormal">Si intersection detecté, indique le vecteur normal à la surface de la primitive, où est localisé interPt</param>
 /// <returns>True si l'intersection existe, False sinon</returns>
 bool IntersectSegmentQuad(Segment seg, Quad quad, float& t, Vector3& interPt, Vector3& interNormal) {
-	Plane superimposedPlane;
-	Vector3 n = quad.ref.j;
+	Plane superimposedPlane;		
+	Vector3 n = quad.ref.j;	
 	float d = Vector3DotProduct(n, quad.ref.origin);
 	superimposedPlane = { n, d};
 
 	bool isIntersection = IntersectSegmentPlane(seg, superimposedPlane, t, interPt, interNormal);
 	if (isIntersection) {
 		Vector3 localPos = GlobalToLocalPos(interPt, quad.ref);
-		return ((fabsf(localPos.x) <= quad.extents.x / 2) && (fabsf(localPos.z) <= quad.extents.z / 2));
+		return ((fabsf(localPos.x) <= quad.extents.x) && (fabsf(localPos.z) <= quad.extents.z));
 	}
 	else
 		return false;
+}
+
+/// <summary>
+/// Blabla
+/// Méthode utilisé également pour le test de l'OBB.
+/// </summary>
+/// <param name="seg"></param>
+/// <param name="box"></param>
+/// <param name="t"></param>
+/// <param name="interPt"></param>
+/// <param name="interNormal"></param>
+/// <returns></returns>
+bool IntersectSegmentBox(Segment seg, Box box, float& t, Vector3& interPt,
+	Vector3& interNormal) {
+
+	// La Map permet de stocker les Quads de la Box ainsi que leur distance entre leur origines et le pt1 du segment.
+	// Au moment du test d'intersection, le Quad qui a la plus courte distance sera traité en premier, et celui qui a la plus longue en dernier.
+	std::map<float, Quad> boxQuads;
+	float piOn2 = PI / 2;
+	Vector3 originForNextQuad;
+	float distanceQuadPt1ForNextQuad;
+	
+	// Construction des 6 Quads qui repésentent la Box
+	Vector3 extentsForQuadsOnX = { box.extents.y, 0, box.extents.z };
+	originForNextQuad = Vector3Add(box.ref.origin, Vector3Scale(box.ref.i, box.extents.x));
+	distanceQuadPt1ForNextQuad = Vector3Distance(seg.pt1, originForNextQuad);
+	Quad sideNormalToXPositive = { {originForNextQuad, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({0, 0, 1}, -piOn2))}, extentsForQuadsOnX };
+	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToXPositive));
+
+	originForNextQuad = Vector3Subtract(box.ref.origin, Vector3Scale(box.ref.i, box.extents.x));
+	distanceQuadPt1ForNextQuad = Vector3Distance(seg.pt1, originForNextQuad);
+	Quad sideNormalToXNegative = { {originForNextQuad, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({0, 0, 1}, piOn2))}, extentsForQuadsOnX };
+	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToXNegative));
+
+	Vector3 extentsForQuadsOnY = { box.extents.x, 0, box.extents.z };
+	originForNextQuad = Vector3Add(box.ref.origin, Vector3Scale(box.ref.j, box.extents.y));
+	distanceQuadPt1ForNextQuad = Vector3Distance(seg.pt1, originForNextQuad);
+	Quad sideNormalToYPositive = { {originForNextQuad, box.ref.q}, extentsForQuadsOnY };
+	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToYPositive));
+
+	originForNextQuad = Vector3Subtract(box.ref.origin, Vector3Scale(box.ref.j, box.extents.y));
+	distanceQuadPt1ForNextQuad = Vector3Distance(seg.pt1, originForNextQuad);
+	Quad sideNormalToYNegative = { {originForNextQuad, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({0, 0, 1}, PI))}, extentsForQuadsOnY };
+	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToYNegative));
+
+	Vector3 extentsForQuadsOnZ = { box.extents.x, 0, box.extents.y };
+	originForNextQuad = Vector3Add(box.ref.origin, Vector3Scale(box.ref.k, box.extents.z));
+	distanceQuadPt1ForNextQuad = Vector3Distance(seg.pt1, originForNextQuad);
+	Quad sideNormalToZPositive = { {originForNextQuad, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({1, 0, 0}, piOn2))}, extentsForQuadsOnZ };
+	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToZPositive));
+
+	originForNextQuad = Vector3Subtract(box.ref.origin, Vector3Scale(box.ref.k, box.extents.z));
+	distanceQuadPt1ForNextQuad = Vector3Distance(seg.pt1, originForNextQuad);
+	Quad sideNormalToZNegative = { {originForNextQuad, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({1, 0, 0}, -piOn2))}, extentsForQuadsOnZ };
+	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToZNegative));
+
+	for (std::map<float, Quad>::iterator it = boxQuads.begin(); it != boxQuads.end(); ++it) {
+
+		if (IntersectSegmentQuad(seg, it->second, t, interPt, interNormal)) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 // réparer la signature de la méthode (* -> &) pour les pts de qualité du code
@@ -1039,6 +1125,11 @@ int main(int argc, char* argv[])
 				{ 0, 0, 2 },
 				QuaternionIdentity()
 			);
+			ReferenceFrame ref5 = ReferenceFrame(
+				{ 0, 0, 20 },
+				QuaternionIdentity()
+			);
+
 
 			// TESTS AFFICHAGE PRIMITIVES 3D
 			// Pour tester, décommenter les parties de code suivantes
@@ -1047,8 +1138,8 @@ int main(int argc, char* argv[])
 			//MyDrawQuad(quad);
 
 			// BOX DISPLAY TEST
-			Box box = { refBase, {4, 4, 8} };
-			MyDrawPolygonBox(box);
+			//Box box = { ref2, {4, 4, 8} };
+			//MyDrawBox(box, true, true);
 
 			// DISK DISPLAY TEST
 			//Disk d = { ref2, 5 };
@@ -1074,10 +1165,10 @@ int main(int argc, char* argv[])
 
 			// THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
-			//Segment segment = { {-5,8,0},{5,-8,3} };
-			//DrawLine3D(segment.pt1, segment.pt2, BLACK);
-			//MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			//MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			Segment segment = { {-5,8,0},{5,-8,3} };
+			DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
 			// TEST LINE PLANE INTERSECTION
 			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
@@ -1102,12 +1193,20 @@ int main(int argc, char* argv[])
 			}*/
 
 			// TEST SEGM QUAD INTERSECTION
-			//Quad q = { ref3, {10, 0, 5} };
-			//MyDrawQuad(q);
-			//if (IntersectSegmentQuad(segment, q, t, interPt, interNormal)) {
+			//Quad quad = { refBase, {10, 0, 2} };
+			//MyDrawQuad(quad);
+			//if (IntersectSegmentQuad(segment, quad, t, interPt, interNormal)) {
 			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			//}
+
+			// TEST SEGM BOX INTERSECTION
+			Box box = { refBase, {3, 6, 4} };
+			MyDrawBox(box);
+			if (IntersectSegmentBox(segment, box, t, interPt, interNormal)) {
+				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			}
 
 			// TEST SEGM CYLINDER INTERSECTION
 			/*
