@@ -523,20 +523,20 @@ void MyDrawPolygonCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
 	Vector3 carPt, carPt2;
 	for (int i = 0; i < diskPointsAtPerim.size() - 1; i++) {
 		carPt = CylindricalToCartesian(diskPointsAtPerim[i]);
-		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
-		rlVertex3f(carPt.x, carPt.y - 0.5, carPt.z);
+		rlVertex3f(carPt.x, carPt.y + 1, carPt.z);
+		rlVertex3f(carPt.x, carPt.y - 1, carPt.z);
 		carPt2 = CylindricalToCartesian(diskPointsAtPerim[i + 1]);
-		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
-		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
-		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
-		rlVertex3f(carPt2.x, carPt2.y + 0.5, carPt2.z);
+		rlVertex3f(carPt2.x, carPt2.y - 1, carPt2.z);
+		rlVertex3f(carPt.x, carPt.y + 1, carPt.z);
+		rlVertex3f(carPt2.x, carPt2.y - 1, carPt2.z);
+		rlVertex3f(carPt2.x, carPt2.y + 1, carPt2.z);
 	}
 	rlEnd();
 
 	// Imbrication de la transformation dans l'espace
 	if (drawCaps) {
-		Disk top = { {{0, 0.5, 0},  QuaternionIdentity()}, 1};
-		Disk bottom = { {{0, -0.5, 0}, QuaternionFromAxisAngle({1, 0, 0}, PI)}, 1};
+		Disk top = { {{0, 1, 0},  QuaternionIdentity()}, 1};
+		Disk bottom = { {{0, -1, 0}, QuaternionFromAxisAngle({1, 0, 0}, PI)}, 1};
 
 		MyDrawPolygonDisk(top, nSectors);
 		MyDrawPolygonDisk(bottom, nSectors);
@@ -570,24 +570,24 @@ void MyDrawWireframeCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
 	Vector3 carPt, carPt2;
 	for (int i = 0; i < diskPointsAtPerim.size() - 1; i++) {
 		carPt = CylindricalToCartesian(diskPointsAtPerim[i]);
-		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
-		rlVertex3f(carPt.x, carPt.y - 0.5, carPt.z);
-		rlVertex3f(carPt.x, carPt.y - 0.5, carPt.z);
+		rlVertex3f(carPt.x, carPt.y + 1, carPt.z);
+		rlVertex3f(carPt.x, carPt.y - 1, carPt.z);
+		rlVertex3f(carPt.x, carPt.y - 1, carPt.z);
 		carPt2 = CylindricalToCartesian(diskPointsAtPerim[i + 1]);
-		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
-		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
-		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
-		rlVertex3f(carPt2.x, carPt2.y - 0.5, carPt2.z);
-		rlVertex3f(carPt2.x, carPt2.y + 0.5, carPt2.z);
-		rlVertex3f(carPt2.x, carPt2.y + 0.5, carPt2.z);
-		rlVertex3f(carPt.x, carPt.y + 0.5, carPt.z);
+		rlVertex3f(carPt2.x, carPt2.y - 1, carPt2.z);
+		rlVertex3f(carPt.x, carPt.y + 1, carPt.z);
+		rlVertex3f(carPt2.x, carPt2.y - 1, carPt2.z);
+		rlVertex3f(carPt2.x, carPt2.y - 1, carPt2.z);
+		rlVertex3f(carPt2.x, carPt2.y + 1, carPt2.z);
+		rlVertex3f(carPt2.x, carPt2.y + 1, carPt2.z);
+		rlVertex3f(carPt.x, carPt.y + 1, carPt.z);
 	}
 	rlEnd();
 
 	// Imbrication de la transformation dans l'espace
 	if (drawCaps) {
-		Disk top = { {{0, 0.5, 0},  QuaternionIdentity()}, 1 };
-		Disk bottom = { {{0, -0.5, 0}, QuaternionFromAxisAngle({1, 0, 0}, PI)}, 1 };
+		Disk top = { {{0, 1, 0},  QuaternionIdentity()}, 1 };
+		Disk bottom = { {{0, -1, 0}, QuaternionFromAxisAngle({1, 0, 0}, PI)}, 1 };
 
 		MyDrawWireframeDisk(top, nSectors, color);
 		MyDrawWireframeDisk(bottom, nSectors, color);
@@ -602,8 +602,6 @@ void MyDrawCylinder(Cylinder cylinder, int nSectors, bool drawCaps = false, bool
 	if (drawWireframe) MyDrawWireframeCylinder(cylinder, nSectors, drawCaps, wireframeColor);
 }
 
-// SPHERE
-// écrire code de test pour chaque meth de tracage 
 void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	color = LIGHTGRAY) {
 	if (nMeridians < 2 || nParallels < 1)
@@ -722,6 +720,44 @@ void MyDrawSphere(Sphere sphere, int nMeridians, int nParallels, bool
 	drawPolygon = true, bool drawWireframe = true, Color polygonColor = LIGHTGRAY,
 	Color wireframeColor = DARKGRAY) {
 
+}
+
+void MyDrawPolygonCapsule(Capsule capsule, int nSectors, int nParallels, Color
+	color = LIGHTGRAY)
+{
+	rlPushMatrix();
+
+	rlTranslatef(capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z);
+	Vector3 vect;
+	float angle;
+	QuaternionToAxisAngle(capsule.ref.q, &vect, &angle);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+	rlScalef(capsule.radius, capsule.halfHeight, capsule.radius);
+
+	Vector3 bottom = { 0, -1, 0 };
+	Vector3 top = { 0, 1, 0 };
+
+	//Calculate the quaternions
+	//Quaternion qTop = QuaternionFromAxisAngle({ 0, 0, 1 }, 0.5 * PI);
+	//Quaternion qBottom = QuaternionFromAxisAngle({ 0, 0, 1 }, -0.5 * PI);
+
+	//Set the referential from P and set the capsule with ref, the radius and height
+	//auto ref = Referential(Bottom, qIdentity);
+	//auto cylinder = Cylinder(ref, capsule.radius, capsule.height);
+
+	////Set the top and the bottom sphere
+	//Sphere sphereTop = { Top, capsule.radius };
+	//Sphere sphereBottom = { Bottom, capsule.radius };
+
+	Cylinder cyl = { ReferenceFrame(), 1, 1 };
+	Sphere sphereBottom = { ReferenceFrame(bottom, QuaternionIdentity()), 1 };
+	Sphere sphereTop = { ReferenceFrame(top, QuaternionIdentity()), 1 };
+
+	MyDrawPolygonCylinder(cyl, nSectors, false, color);			// !!!!! true ptet
+	MyDrawPolygonSphere(sphereTop, nSectors, nParallels, color);
+	MyDrawPolygonSphere(sphereBottom, nSectors, nParallels, color);
+
+	rlPopMatrix();
 }
 #pragma endregion;
 
@@ -1119,7 +1155,7 @@ int main(int argc, char* argv[])
 			);
 			ReferenceFrame ref3 = ReferenceFrame(
 				{ 0, 0, 0 },
-				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), 0)
+				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 2)
 			);
 			ReferenceFrame ref4 = ReferenceFrame(
 				{ 0, 0, 2 },
@@ -1146,16 +1182,16 @@ int main(int argc, char* argv[])
 			//MyDrawDisk(d, 30);
 
 			// CYLINDER DISPLAY TEST
-			//Cylinder c = { ref1, 4, 2};
+			//Cylinder c = { ref3, 2, 1};
 			//MyDrawCylinder(c, 10, true);
 
-
 			// SPHERE DISPLAY TEST
-			//ReferenceFrame ref2 = ReferenceFrame(
-			//	{0, 0, 0},
-			//	QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), 0));
 			//Sphere s = { ref2, 4 };
 			//MyDrawPolygonSphere(s, 10, 10);
+
+			// CAPSULE DISPLAY TEST
+			Capsule cap = { ref3, 3, 1 };
+			MyDrawPolygonCapsule(cap, 15, 10);
 
 			
 			//TESTS INTERSECTIONS
@@ -1165,10 +1201,10 @@ int main(int argc, char* argv[])
 
 			// THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
-			Segment segment = { {-5,8,0},{5,-8,3} };
-			DrawLine3D(segment.pt1, segment.pt2, BLACK);
-			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			//Segment segment = { {-5,8,0},{5,-8,3} };
+			//DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			//MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			//MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
 			// TEST LINE PLANE INTERSECTION
 			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
@@ -1201,12 +1237,12 @@ int main(int argc, char* argv[])
 			//}
 
 			// TEST SEGM BOX INTERSECTION
-			Box box = { refBase, {3, 6, 4} };
-			MyDrawBox(box);
-			if (IntersectSegmentBox(segment, box, t, interPt, interNormal)) {
-				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-			}
+			//Box box = { refBase, {3, 6, 4} };
+			//MyDrawBox(box);
+			//if (IntersectSegmentBox(segment, box, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
 
 			// TEST SEGM CYLINDER INTERSECTION
 			/*
