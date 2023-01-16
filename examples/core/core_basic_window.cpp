@@ -753,7 +753,7 @@ void MyDrawPolygonCapsule(Capsule capsule, int nSectors, int nParallels, Color
 	Sphere sphereBottom = { ReferenceFrame(bottom, QuaternionIdentity()), 1 };
 	Sphere sphereTop = { ReferenceFrame(top, QuaternionIdentity()), 1 };
 
-	MyDrawPolygonCylinder(cyl, nSectors, false, color);			// !!!!! true ptet
+	//MyDrawPolygonCylinder(cyl, nSectors, false, color);
 	MyDrawPolygonSphere(sphereTop, nSectors, nParallels, color);
 	MyDrawPolygonSphere(sphereBottom, nSectors, nParallels, color);
 
@@ -901,7 +901,7 @@ bool IntersectSegmentSphere(Segment seg, Sphere sph, float* t, Vector3* interPt,
 
 	*t = (-b - sqrtf(delta)) / (2 * a);
 
-	std::cout << "t=" << *t << "\n";
+	// std::cout << "t=" << *t << "\n";
 
 	if (*t < 0 || *t > 1) return false;
 
@@ -930,6 +930,7 @@ bool IntersectSegmentDisk(Segment seg, Disk disk, float& t, Vector3& interPt, Ve
 */
 
 // penser à tester l'argument t
+// Attention : l'intersection avec les chapeaux ne marchent pas (après ca se trouve c'est même pas à faire..)
 bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& interPt, Vector3& interNormal) {
 
 	Vector3 cylDir = Vector3RotateByQuaternion({ 0,1,0 }, cyl.ref.q);
@@ -994,24 +995,21 @@ bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& inte
 bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& interPt, Vector3& interNormal) {
 	bool isIntersec = false;
 	bool tmpIsIntersec = false;
-	interPt = { FLT_MAX };			// tej ftl
-	interNormal = { FLT_MAX };
+
+	// Un autre système plus léger pour définir le premier point d'intersection rencontré par le segment:
+	// blabla
+	// osef que FLT_MAX soit en x, y ou z. Le principale, c'est qu'il soit super élogné
+
+	interPt = { FLT_MAX, FLT_MAX, FLT_MAX };
+	interNormal = { FLT_MAX, FLT_MAX, FLT_MAX };
 
 	Vector3 up = LocalToGlobalPos({ 0, capsule.halfHeight, 0 }, capsule.ref);
-	Vector3 down = LocalToGlobalPos({ 0, - capsule.halfHeight, 0 }, capsule.ref);		// !!!!!!!!!!! : tester avec la valeur d'origine : 0
+	Vector3 down = LocalToGlobalPos({ 0, - capsule.halfHeight, 0 }, capsule.ref);
 
-	// Quaternions utiles (à suppr si j'arrive à faire marcher sans)
-	Quaternion qUp = QuaternionFromAxisAngle({ 0, 0, 1 }, 1/2 * PI);
-	Quaternion qDown = QuaternionFromAxisAngle({ 0, 0, 1 }, 3/2 * PI);
-	Quaternion qIdentity = QuaternionIdentity();
-
-	// 2 sphères + 1 cylindre
-	ReferenceFrame ref = ReferenceFrame(capsule.ref.origin, capsule.ref.q);			// !!!!!!!!!!! : tester avec la val stock : down
+	ReferenceFrame ref = ReferenceFrame(capsule.ref.origin, capsule.ref.q);
 	Cylinder cylinder = { ref, capsule.halfHeight, capsule.radius };
-	//cylinder.UpdateCylinder();
-
-	Sphere sphereUp = { {up, qIdentity }, capsule.radius };
-	Sphere sphereDown = { {down, qIdentity}, capsule.radius };
+	Sphere sphereUp = { {up, QuaternionIdentity() }, capsule.radius };
+	Sphere sphereDown = { {down, QuaternionIdentity()}, capsule.radius };
 
 	Vector3 tmpInterPt;
 	Vector3 tmpInterNormal;
@@ -1153,6 +1151,10 @@ int main(int argc, char* argv[])
 				{3, 1, 0},
 				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 3)
 			);
+			ReferenceFrame ref2QReversed = ReferenceFrame(
+				{ 3, 1, 0 },
+				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 3 + PI)
+			);
 			ReferenceFrame ref3 = ReferenceFrame(
 				{ 0, 0, 0 },
 				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 2)
@@ -1190,8 +1192,8 @@ int main(int argc, char* argv[])
 			//MyDrawPolygonSphere(s, 10, 10);
 
 			// CAPSULE DISPLAY TEST
-			Capsule cap = { ref3, 3, 1 };
-			MyDrawPolygonCapsule(cap, 15, 10);
+			//Capsule cap = { ref3, 3, 1 };
+			//MyDrawPolygonCapsule(cap, 15, 10);
 
 			
 			//TESTS INTERSECTIONS
@@ -1253,6 +1255,18 @@ int main(int argc, char* argv[])
 				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			}
 			*/
+
+			// TEST SEGM CAPSULE INTERSECTION
+			Capsule cap = { ref2QReversed, 6, 5 };
+			MyDrawPolygonCapsule(cap, 15, 10);
+			Segment segment2 = { {2,15,15},{3,-15,-15} };
+			DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
+			MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			MyDrawPolygonSphere({ {segment2.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			if (IntersectSegmentCapsule(segment2, cap, t, interPt, interNormal)) {
+				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			}
 			
 
 		}
