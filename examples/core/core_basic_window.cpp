@@ -737,27 +737,25 @@ void MyDrawPolygonCapsule(Capsule capsule, int nSectors, int nParallels, Color
 	Vector3 bottom = { 0, -1, 0 };
 	Vector3 top = { 0, 1, 0 };
 
-	//Calculate the quaternions
-	//Quaternion qTop = QuaternionFromAxisAngle({ 0, 0, 1 }, 0.5 * PI);
-	//Quaternion qBottom = QuaternionFromAxisAngle({ 0, 0, 1 }, -0.5 * PI);
-
-	//Set the referential from P and set the capsule with ref, the radius and height
-	//auto ref = Referential(Bottom, qIdentity);
-	//auto cylinder = Cylinder(ref, capsule.radius, capsule.height);
-
-	////Set the top and the bottom sphere
-	//Sphere sphereTop = { Top, capsule.radius };
-	//Sphere sphereBottom = { Bottom, capsule.radius };
-
 	Cylinder cyl = { ReferenceFrame(), 1, 1 };
-	Sphere sphereBottom = { ReferenceFrame(bottom, QuaternionIdentity()), 1 };
-	Sphere sphereTop = { ReferenceFrame(top, QuaternionIdentity()), 1 };
+	MyDrawPolygonCylinder(cyl, nSectors, false, color);
 
-	//MyDrawPolygonCylinder(cyl, nSectors, false, color);
+	// On ne souhaite pas que les sphères soient ovales à cause du redimentionnement de rlScalef().
+	// On crée alors une nouvelle matrice, identique à la précédente, à l'exception qu'elle n'inclut pas
+	// de transformation de scaling
+	rlPopMatrix();
+	rlPushMatrix();
+	rlTranslatef(capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+
+	Sphere sphereBottom = { ReferenceFrame({ 0, -capsule.halfHeight, 0 }, QuaternionIdentity()), capsule.radius };
+	Sphere sphereTop = { ReferenceFrame({ 0, capsule.halfHeight, 0 }, QuaternionIdentity()), capsule.radius };
 	MyDrawPolygonSphere(sphereTop, nSectors, nParallels, color);
 	MyDrawPolygonSphere(sphereBottom, nSectors, nParallels, color);
 
 	rlPopMatrix();
+
+
 }
 #pragma endregion;
 
@@ -935,8 +933,8 @@ bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& inte
 
 	Vector3 cylDir = Vector3RotateByQuaternion({ 0,1,0 }, cyl.ref.q);
 
-	Vector3 A = Vector3Add(cyl.ref.origin, Vector3Scale(cylDir, -cyl.halfHeight * .5f));		// bas du cyl
-	Vector3 B = Vector3Add(cyl.ref.origin, Vector3Scale(cylDir, cyl.halfHeight * .5f));		// haut du cyl
+	Vector3 A = Vector3Add(cyl.ref.origin, Vector3Scale(cylDir, -cyl.halfHeight));		// bas du cyl
+	Vector3 B = Vector3Add(cyl.ref.origin, Vector3Scale(cylDir, cyl.halfHeight));		// haut du cyl
 	float r = cyl.radius;			// rayon
 	Vector3 start = seg.pt1;
 	Vector3 dir = Vector3Normalize(Vector3Subtract(seg.pt2, seg.pt1));
@@ -993,15 +991,6 @@ bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& inte
 /// <param name="interNormal"></param>
 /// <returns>True pour intersection, False sinon</returns>
 bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& interPt, Vector3& interNormal) {
-	// Un autre système plus léger pour définir le premier point d'intersection rencontré par le segment:
-	// blabla
-	// osef que FLT_MAX soit en x, y ou z. Le principale, c'est qu'il soit super élogné
-
-	interPt = { FLT_MAX, FLT_MAX, FLT_MAX };
-	interNormal = { FLT_MAX, FLT_MAX, FLT_MAX };
-	bool isInter = false;
-	bool isInterCurrent;
-
 	Vector3 up = LocalToGlobalPos({ 0, capsule.halfHeight, 0 }, capsule.ref);
 	Vector3 down = LocalToGlobalPos({ 0, - capsule.halfHeight, 0 }, capsule.ref);
 
@@ -1010,32 +999,43 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 	Sphere sphereUp = { {up, QuaternionIdentity() }, capsule.radius };
 	Sphere sphereDown = { {down, QuaternionIdentity()}, capsule.radius };
 
-	Vector3 tmpInterPt;
-	Vector3 tmpInterNormal;
+	Vector3 interPtCurrent;
+	Vector3 interNormalCurrent;
 	float tmpT;
 
-	// OBB à l'avenir
+	// OBB
+	ReferenceFrame refObb = ReferenceFrame(capsule.ref.origin, capsule.ref.q);
+	Vector3 extentsObb = {capsule.radius, capsule.halfHeight + capsule.radius, capsule.radius};
+	Box obb = { refObb, extentsObb};
+	if (!IntersectSegmentBox(seg, obb, t, interPt, interNormal))
+		return false;
 
-	// inter avec cylindre ?
-	isInterCurrent = IntersectSegmentCylinder(seg, cylinder, tmpT, tmpInterPt, tmpInterNormal);
-	if (isInterCurrent && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+	// Un autre système plus léger pour définir le premier point d'intersection rencontré par le segment.
+	// Pour une intersection trouvée, on vérifie si la distance entre le pt1 du segment et le point
+	// d'intersection trouvé est inférieure à celle avec le dernier point d'intersection déterminé (interPt).
+	// On initialise interPt avec FLT_MAX, de manière à ce qu'il soit le plus éloigné possible
+	bool isInter = false;
+	bool isInterCurrent;
+	interPt = { FLT_MAX, FLT_MAX, FLT_MAX };
+
+	isInterCurrent = IntersectSegmentCylinder(seg, cylinder, tmpT, interPtCurrent, interNormalCurrent);
+	if (isInterCurrent && Vector3Distance(interPtCurrent, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { interPtCurrent.x, interPtCurrent.y, interPtCurrent.z };
+		interNormal = { interNormalCurrent.x, interNormalCurrent.y, interNormalCurrent.z };
 		isInter = true;
 	}
 
-	// inter avec les spheres ?
-	isInterCurrent = IntersectSegmentSphere(seg, sphereUp, &tmpT, &tmpInterPt, &tmpInterNormal);
-	if (isInterCurrent && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+	isInterCurrent = IntersectSegmentSphere(seg, sphereUp, &tmpT, &interPtCurrent, &interNormalCurrent);
+	if (isInterCurrent && Vector3Distance(interPtCurrent, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { interPtCurrent.x, interPtCurrent.y, interPtCurrent.z };
+		interNormal = { interNormalCurrent.x, interNormalCurrent.y, interNormalCurrent.z };
 		isInter = true;
 	}
 
-	isInterCurrent = IntersectSegmentSphere(seg, sphereDown, &tmpT, &tmpInterPt, &tmpInterNormal);
-	if (isInterCurrent && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
-		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
-		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+	isInterCurrent = IntersectSegmentSphere(seg, sphereDown, &tmpT, &interPtCurrent, &interNormalCurrent);
+	if (isInterCurrent && Vector3Distance(interPtCurrent, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+		interPt = { interPtCurrent.x, interPtCurrent.y, interPtCurrent.z };
+		interNormal = { interNormalCurrent.x, interNormalCurrent.y, interNormalCurrent.z };
 		isInter = true;
 	}
 
@@ -1161,8 +1161,12 @@ int main(int argc, char* argv[])
 				{ 0, 0, 2 },
 				QuaternionIdentity()
 			);
-			ReferenceFrame ref5 = ReferenceFrame(
+			ReferenceFrame refALouest = ReferenceFrame(
 				{ 0, 0, 20 },
+				QuaternionIdentity()
+			);
+			ReferenceFrame ref6 = ReferenceFrame(
+				{ 6, 0, 4 },
 				QuaternionIdentity()
 			);
 
@@ -1255,8 +1259,8 @@ int main(int argc, char* argv[])
 			*/
 
 			// TEST SEGM CAPSULE INTERSECTION
-			Capsule cap = { ref2QReversed, 6, 5 };
-			MyDrawPolygonCapsule(cap, 15, 10);
+			Capsule cap = { refALouest, 8, 5 };
+			MyDrawPolygonCapsule(cap, 15, 15);
 			Segment segment2 = { {2,15,15},{3,-15,-15} };
 			DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
 			MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
