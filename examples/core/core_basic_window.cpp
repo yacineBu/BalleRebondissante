@@ -993,15 +993,14 @@ bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& inte
 /// <param name="interNormal"></param>
 /// <returns>True pour intersection, False sinon</returns>
 bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& interPt, Vector3& interNormal) {
-	bool isIntersec = false;
-	bool tmpIsIntersec = false;
-
 	// Un autre système plus léger pour définir le premier point d'intersection rencontré par le segment:
 	// blabla
 	// osef que FLT_MAX soit en x, y ou z. Le principale, c'est qu'il soit super élogné
 
 	interPt = { FLT_MAX, FLT_MAX, FLT_MAX };
 	interNormal = { FLT_MAX, FLT_MAX, FLT_MAX };
+	bool isInter = false;
+	bool isInterCurrent;
 
 	Vector3 up = LocalToGlobalPos({ 0, capsule.halfHeight, 0 }, capsule.ref);
 	Vector3 down = LocalToGlobalPos({ 0, - capsule.halfHeight, 0 }, capsule.ref);
@@ -1017,31 +1016,30 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 
 	// OBB à l'avenir
 
-	// Test de collision avec le cylindre
-	tmpIsIntersec = IntersectSegmentCylinder(seg, cylinder, tmpT, tmpInterPt, tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+	// inter avec cylindre ?
+	isInterCurrent = IntersectSegmentCylinder(seg, cylinder, tmpT, tmpInterPt, tmpInterNormal);
+	if (isInterCurrent && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
 		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
 		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
+		isInter = true;
 	}
 
-	// Test de collision avec la première sphère
-	tmpIsIntersec = IntersectSegmentSphere(seg, sphereUp, &tmpT, &tmpInterPt, &tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+	// inter avec les spheres ?
+	isInterCurrent = IntersectSegmentSphere(seg, sphereUp, &tmpT, &tmpInterPt, &tmpInterNormal);
+	if (isInterCurrent && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
 		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
 		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
+		isInter = true;
 	}
 
-	// Test de collision avec la seconde sphère
-	tmpIsIntersec = IntersectSegmentSphere(seg, sphereDown, &tmpT, &tmpInterPt, &tmpInterNormal);
-	if (tmpIsIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
+	isInterCurrent = IntersectSegmentSphere(seg, sphereDown, &tmpT, &tmpInterPt, &tmpInterNormal);
+	if (isInterCurrent && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
 		interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
 		interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
-		isIntersec = true;
+		isInter = true;
 	}
 
-	return isIntersec;
+	return isInter;
 }
 
 #pragma endregion;
