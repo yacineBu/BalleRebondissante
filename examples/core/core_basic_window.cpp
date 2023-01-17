@@ -878,7 +878,7 @@ bool IntersectSegmentBox(Segment seg, Box box, float& t, Vector3& interPt,
 }
 
 // réparer la signature de la méthode (* -> &) pour les pts de qualité du code
-bool IntersectSegmentSphere(Segment seg, Sphere sph, float* t, Vector3* interPt, Vector3* interNormal) {
+bool IntersectSegmentSphere(Segment seg, Sphere sph, float& t, Vector3& interPt, Vector3& interNormal) {
 
 	Vector3 vecteurAB = Vector3Subtract(seg.pt2, seg.pt1); // vecteur AB
 	Vector3 vecteur2AB = Vector3Scale(vecteurAB, 2.0); // vecteur 2AB
@@ -896,15 +896,15 @@ bool IntersectSegmentSphere(Segment seg, Sphere sph, float* t, Vector3* interPt,
 
 	if (delta < 0) return false;
 
-	*t = (-b - sqrtf(delta)) / (2 * a);
+	t = (-b - sqrtf(delta)) / (2 * a);
 
-	// std::cout << "t=" << *t << "\n";
+	std::cout << "t=" << t << "\n";
 
-	if (*t < 0 || *t > 1) return false;
+	if (t < 0 || t > 1) return false;
 
-	*interPt = Vector3Add(seg.pt1, Vector3Scale(vecteurAB, *t));
+	interPt = Vector3Add(seg.pt1, Vector3Scale(vecteurAB, t));
 
-	*interNormal = Vector3Subtract(sph.ref.origin, *interPt);
+	interNormal = Vector3Subtract(sph.ref.origin, interPt);
 
 	return true;
 }
@@ -1024,14 +1024,14 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 		isInter = true;
 	}
 
-	isInterCurrent = IntersectSegmentSphere(seg, sphereUp, &tmpT, &interPtCurrent, &interNormalCurrent);
+	isInterCurrent = IntersectSegmentSphere(seg, sphereUp, tmpT, interPtCurrent, interNormalCurrent);
 	if (isInterCurrent && Vector3Distance(interPtCurrent, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
 		interPt = { interPtCurrent.x, interPtCurrent.y, interPtCurrent.z };
 		interNormal = { interNormalCurrent.x, interNormalCurrent.y, interNormalCurrent.z };
 		isInter = true;
 	}
 
-	isInterCurrent = IntersectSegmentSphere(seg, sphereDown, &tmpT, &interPtCurrent, &interNormalCurrent);
+	isInterCurrent = IntersectSegmentSphere(seg, sphereDown, tmpT, interPtCurrent, interNormalCurrent);
 	if (isInterCurrent && Vector3Distance(interPtCurrent, seg.pt1) < Vector3Distance(interPt, seg.pt1)) {
 		interPt = { interPtCurrent.x, interPtCurrent.y, interPtCurrent.z };
 		interNormal = { interNormalCurrent.x, interNormalCurrent.y, interNormalCurrent.z };
@@ -1204,10 +1204,10 @@ int main(int argc, char* argv[])
 
 			// THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
-			//Segment segment = { {-5,8,0},{5,-8,3} };
-			//DrawLine3D(segment.pt1, segment.pt2, BLACK);
-			//MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			//MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			Segment segment = { {-5,8,0},{5,-8,3} };
+			DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
 			// TEST LINE PLANE INTERSECTION
 			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
@@ -1247,27 +1247,35 @@ int main(int argc, char* argv[])
 			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			//}
 
+			// TEST SEGM SPHERE INTERSECTION
+			//Sphere s = { refBase, 4 };
+			//MyDrawPolygonSphere(s, 10, 10);
+			//if (IntersectSegmentSphere(segment, s, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
+
 			// TEST SEGM CYLINDER INTERSECTION
 			/*
 			Cylinder c = { ref3, 4, 2};
 			MyDrawCylinder(c, 10, true);
-			if (IntersectSegmentCylinder(segment, c, interPt, interNormal)) {
+			if (IntersectSegmentCylinder(segment, c, t, interPt, interNormal)) {
 				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			}
 			*/
 
 			// TEST SEGM CAPSULE INTERSECTION
-			Capsule cap = { refALouest, 8, 5 };
-			MyDrawPolygonCapsule(cap, 15, 15);
-			Segment segment2 = { {2,15,15},{3,-15,-15} };
-			DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
-			MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			MyDrawPolygonSphere({ {segment2.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
-			if (IntersectSegmentCapsule(segment2, cap, t, interPt, interNormal)) {
-				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-			}
+			//Capsule cap = { ref2, 8, 5 };
+			//MyDrawPolygonCapsule(cap, 15, 15);
+			//Segment segment2 = { {2,15,15},{3,-15,-15} };
+			//DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
+			//MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			//MyDrawPolygonSphere({ {segment2.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			//if (IntersectSegmentCapsule(segment2, cap, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
 			
 
 		}
