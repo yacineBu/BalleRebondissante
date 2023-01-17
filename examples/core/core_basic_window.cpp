@@ -709,17 +709,20 @@ void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	rlPopMatrix();
 }
 
+// TODO
 void MyDrawWireframeSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	color = DARKGRAY) {
 	if (nMeridians < 2 || nParallels < 1)
 		return;
-
+	
+	return;
 }
 
 void MyDrawSphere(Sphere sphere, int nMeridians, int nParallels, bool
 	drawPolygon = true, bool drawWireframe = true, Color polygonColor = LIGHTGRAY,
 	Color wireframeColor = DARKGRAY) {
-
+	if (drawPolygon) MyDrawPolygonSphere(sphere, nMeridians, nParallels, polygonColor);
+	if (drawWireframe) MyDrawWireframeSphere(sphere, nMeridians, nParallels, wireframeColor);
 }
 
 void MyDrawPolygonCapsule(Capsule capsule, int nSectors, int nParallels, Color
@@ -754,8 +757,193 @@ void MyDrawPolygonCapsule(Capsule capsule, int nSectors, int nParallels, Color
 	MyDrawPolygonSphere(sphereBottom, nSectors, nParallels, color);
 
 	rlPopMatrix();
+}
 
+void MyDrawWireframeCapsule(Capsule capsule, int nSectors, int nParallels, Color
+	color = LIGHTGRAY) {
+	rlPushMatrix();
 
+	rlTranslatef(capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z);
+	Vector3 vect;
+	float angle;
+	QuaternionToAxisAngle(capsule.ref.q, &vect, &angle);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+	rlScalef(capsule.radius, capsule.halfHeight, capsule.radius);
+
+	Vector3 bottom = { 0, -1, 0 };
+	Vector3 top = { 0, 1, 0 };
+
+	Cylinder cyl = { ReferenceFrame(), 1, 1 };
+	MyDrawWireframeCylinder(cyl, nSectors, false, color);
+
+	// On ne souhaite pas que les sphères soient ovales à cause du redimentionnement de rlScalef().
+	// On crée alors une nouvelle matrice, identique à la précédente, à l'exception qu'elle n'inclut pas
+	// de transformation de scaling
+	rlPopMatrix();
+	rlPushMatrix();
+	rlTranslatef(capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+
+	Sphere sphereBottom = { ReferenceFrame({ 0, -capsule.halfHeight, 0 }, QuaternionIdentity()), capsule.radius };
+	Sphere sphereTop = { ReferenceFrame({ 0, capsule.halfHeight, 0 }, QuaternionIdentity()), capsule.radius };
+	MyDrawWireframeSphere(sphereTop, nSectors, nParallels, color);
+	MyDrawWireframeSphere(sphereBottom, nSectors, nParallels, color);
+
+	rlPopMatrix();
+}
+
+void MyDrawCapsule(Capsule capsule, int nSectors, int nParallels, bool
+	drawPolygon = true, bool drawWireframe = true, Color polygonColor = LIGHTGRAY,
+	Color wireframeColor = DARKGRAY) {
+	if (drawPolygon) MyDrawPolygonCapsule(capsule, nSectors, nParallels, polygonColor);
+	if (drawWireframe) MyDrawWireframeCapsule(capsule, nSectors, nParallels, wireframeColor);
+}
+
+void MyDrawPolygonRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels, Color
+	color = LIGHTGRAY) {
+	rlPushMatrix();
+
+	rlTranslatef(roundedBox.ref.origin.x, roundedBox.ref.origin.y, roundedBox.ref.origin.z);
+	Vector3 vect;
+	float angle;
+	QuaternionToAxisAngle(roundedBox.ref.q, &vect, &angle);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+
+	// Dessin des 6 quads
+	float piOn2 = PI / 2;
+	Vector3 extentsForQuadsOnX = { roundedBox.extents.y, 0, roundedBox.extents.z };
+	Vector3 extentsForQuadsOnY = { roundedBox.extents.x, 0, roundedBox.extents.z };
+	Vector3 extentsForQuadsOnZ = { roundedBox.extents.x, 0, roundedBox.extents.y };
+	Quaternion qId = QuaternionIdentity();
+
+	Quad sideNormalToXPositive = { {{roundedBox.extents.x + roundedBox.radius, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, -piOn2)}, extentsForQuadsOnX };
+	Quad sideNormalToXNegative = { {{-roundedBox.extents.x - roundedBox.radius, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, piOn2)}, extentsForQuadsOnX };
+	Quad sideNormalToYPositive = { {{0, roundedBox.extents.y + roundedBox.radius, 0}, qId}, extentsForQuadsOnY };
+	Quad sideNormalToYNegative = { {{0, -roundedBox.extents.y - roundedBox.radius, 0}, QuaternionFromAxisAngle({0, 0, 1}, PI)}, extentsForQuadsOnY };
+	Quad sideNormalToZPositive = { {{0, 0, roundedBox.extents.z + roundedBox.radius }, QuaternionFromAxisAngle({1, 0, 0}, piOn2)}, extentsForQuadsOnZ };
+	Quad sideNormalToZNegative = { {{0, 0, -roundedBox.extents.z - roundedBox.radius }, QuaternionFromAxisAngle({1, 0, 0}, -piOn2)}, extentsForQuadsOnZ };
+
+	MyDrawPolygonQuad(sideNormalToXPositive, color);
+	MyDrawPolygonQuad(sideNormalToXNegative, color);
+	MyDrawPolygonQuad(sideNormalToYPositive, color);
+	MyDrawPolygonQuad(sideNormalToYNegative, color);
+	MyDrawPolygonQuad(sideNormalToZPositive, color);
+	MyDrawPolygonQuad(sideNormalToZNegative, color);
+
+	// On complète le dessin par des capsules et des cylindres.
+	// La logique de dessin :
+	// On les dessinent en "tournant" autour de l'axe Y de la rounded box, en partant du Quad sideNormalToXPositive. 
+	// On traite tous les Quads normal à l'axe X et Z de la rounded box (4 Quads en tout), en dessinant pour chacun 1 capsule et 2 cylindres.
+	// Toutes les capsules dessinées ont leur axe de longeur (l'axe de halfHeight) parallèle à l'axe Y de la rouded box.
+	Quaternion qPiOn2RotatedOnX = QuaternionFromAxisAngle({ 1, 0, 0 }, piOn2);
+	Quaternion qPiOn2RotatedOnZ = QuaternionFromAxisAngle({ 0, 0, 1 }, piOn2);
+
+	Capsule capsForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, 0, roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius};
+	Cylinder cylOnYPositiveForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
+	Cylinder cylOnYNegativeForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, -roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
+	MyDrawPolygonCapsule(capsForSideNormalToXPositive, nSectors, nParallels, color);
+	MyDrawPolygonCylinder(cylOnYPositiveForSideNormalToXPositive, nSectors, false, color);
+	MyDrawPolygonCylinder(cylOnYNegativeForSideNormalToXPositive, nSectors, false, color);
+
+	Capsule capsForSideNormalToYPositive = { ReferenceFrame({-roundedBox.extents.x, 0, roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius };
+	Cylinder cylOnYPositiveForSideNormalToYPositive = { ReferenceFrame({0, roundedBox.extents.y, roundedBox.extents.z}, qPiOn2RotatedOnZ), roundedBox.extents.x, roundedBox.radius };
+	Cylinder cylOnYNegativeForSideNormalToYPositive = { ReferenceFrame({0, -roundedBox.extents.y, roundedBox.extents.z}, qPiOn2RotatedOnZ), roundedBox.extents.x, roundedBox.radius };
+	MyDrawPolygonCapsule(capsForSideNormalToYPositive, nSectors, nParallels, color);
+	MyDrawPolygonCylinder(cylOnYPositiveForSideNormalToYPositive, nSectors, false, color);
+	MyDrawPolygonCylinder(cylOnYNegativeForSideNormalToYPositive, nSectors, false, color);
+
+	Capsule capsForSideNormalToXNegative = { ReferenceFrame({-roundedBox.extents.x, 0, -roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius };
+	Cylinder cylOnYPositiveForSideNormalToXNegative = { ReferenceFrame({-roundedBox.extents.x, roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
+	Cylinder cylOnYNegativeForSideNormalToXNegative = { ReferenceFrame({-roundedBox.extents.x, -roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
+	MyDrawPolygonCapsule(capsForSideNormalToXNegative, nSectors, nParallels, color);
+	MyDrawPolygonCylinder(cylOnYPositiveForSideNormalToXNegative, nSectors, false, color);
+	MyDrawPolygonCylinder(cylOnYNegativeForSideNormalToXNegative, nSectors, false, color);
+
+	Capsule capsForSideNormalToYNegative = { ReferenceFrame({roundedBox.extents.x, 0, -roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius };
+	Cylinder cylOnYPositiveForSideNormalToYNegative = { ReferenceFrame({0, roundedBox.extents.y, -roundedBox.extents.z}, qPiOn2RotatedOnZ), roundedBox.extents.x, roundedBox.radius };
+	Cylinder cylOnYNegativeForSideNormalToYNegative = { ReferenceFrame({0, -roundedBox.extents.y, -roundedBox.extents.z}, qPiOn2RotatedOnZ), roundedBox.extents.x, roundedBox.radius };
+	MyDrawPolygonCapsule(capsForSideNormalToYNegative, nSectors, nParallels, color);
+	MyDrawPolygonCylinder(cylOnYPositiveForSideNormalToYNegative, nSectors, false, color);
+	MyDrawPolygonCylinder(cylOnYNegativeForSideNormalToYNegative, nSectors, false, color);
+
+	rlPopMatrix();
+}
+
+void MyDrawWireframeRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels, Color
+	color = LIGHTGRAY) {
+	rlPushMatrix();
+
+	rlTranslatef(roundedBox.ref.origin.x, roundedBox.ref.origin.y, roundedBox.ref.origin.z);
+	Vector3 vect;
+	float angle;
+	QuaternionToAxisAngle(roundedBox.ref.q, &vect, &angle);
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
+
+	// Dessin des 6 quads
+	float piOn2 = PI / 2;
+	Vector3 extentsForQuadsOnX = { roundedBox.extents.y, 0, roundedBox.extents.z };
+	Vector3 extentsForQuadsOnY = { roundedBox.extents.x, 0, roundedBox.extents.z };
+	Vector3 extentsForQuadsOnZ = { roundedBox.extents.x, 0, roundedBox.extents.y };
+	Quaternion qId = QuaternionIdentity();
+
+	Quad sideNormalToXPositive = { {{roundedBox.extents.x + roundedBox.radius, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, -piOn2)}, extentsForQuadsOnX };
+	Quad sideNormalToXNegative = { {{-roundedBox.extents.x - roundedBox.radius, 0, 0}, QuaternionFromAxisAngle({0, 0, 1}, piOn2)}, extentsForQuadsOnX };
+	Quad sideNormalToYPositive = { {{0, roundedBox.extents.y + roundedBox.radius, 0}, qId}, extentsForQuadsOnY };
+	Quad sideNormalToYNegative = { {{0, -roundedBox.extents.y - roundedBox.radius, 0}, QuaternionFromAxisAngle({0, 0, 1}, PI)}, extentsForQuadsOnY };
+	Quad sideNormalToZPositive = { {{0, 0, roundedBox.extents.z + roundedBox.radius }, QuaternionFromAxisAngle({1, 0, 0}, piOn2)}, extentsForQuadsOnZ };
+	Quad sideNormalToZNegative = { {{0, 0, -roundedBox.extents.z - roundedBox.radius }, QuaternionFromAxisAngle({1, 0, 0}, -piOn2)}, extentsForQuadsOnZ };
+
+	MyDrawWireframeQuad(sideNormalToXPositive, color);
+	MyDrawWireframeQuad(sideNormalToXNegative, color);
+	MyDrawWireframeQuad(sideNormalToYPositive, color);
+	MyDrawWireframeQuad(sideNormalToYNegative, color);
+	MyDrawWireframeQuad(sideNormalToZPositive, color);
+	MyDrawWireframeQuad(sideNormalToZNegative, color);
+
+	// On complète le dessin par des capsules et des cylindres.
+	// La logique de dessin :
+	// On les dessinent en "tournant" autour de l'axe Y de la rounded box, en partant du Quad sideNormalToXPositive. 
+	// On traite tous les Quads normal à l'axe X et Z de la rounded box (4 Quads en tout), en dessinant pour chacun 1 capsule et 2 cylindres.
+	// Toutes les capsules dessinées ont leur axe de longeur (l'axe de halfHeight) parallèle à l'axe Y de la rouded box.
+	Quaternion qPiOn2RotatedOnX = QuaternionFromAxisAngle({ 1, 0, 0 }, piOn2);
+	Quaternion qPiOn2RotatedOnZ = QuaternionFromAxisAngle({ 0, 0, 1 }, piOn2);
+
+	Capsule capsForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, 0, roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius };
+	Cylinder cylOnYPositiveForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
+	Cylinder cylOnYNegativeForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, -roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
+	MyDrawWireframeCapsule(capsForSideNormalToXPositive, nSectors, nParallels, color);
+	MyDrawWireframeCylinder(cylOnYPositiveForSideNormalToXPositive, nSectors, false, color);
+	MyDrawWireframeCylinder(cylOnYNegativeForSideNormalToXPositive, nSectors, false, color);
+
+	Capsule capsForSideNormalToYPositive = { ReferenceFrame({-roundedBox.extents.x, 0, roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius };
+	Cylinder cylOnYPositiveForSideNormalToYPositive = { ReferenceFrame({0, roundedBox.extents.y, roundedBox.extents.z}, qPiOn2RotatedOnZ), roundedBox.extents.x, roundedBox.radius };
+	Cylinder cylOnYNegativeForSideNormalToYPositive = { ReferenceFrame({0, -roundedBox.extents.y, roundedBox.extents.z}, qPiOn2RotatedOnZ), roundedBox.extents.x, roundedBox.radius };
+	MyDrawWireframeCapsule(capsForSideNormalToYPositive, nSectors, nParallels, color);
+	MyDrawWireframeCylinder(cylOnYPositiveForSideNormalToYPositive, nSectors, false, color);
+	MyDrawWireframeCylinder(cylOnYNegativeForSideNormalToYPositive, nSectors, false, color);
+
+	Capsule capsForSideNormalToXNegative = { ReferenceFrame({-roundedBox.extents.x, 0, -roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius };
+	Cylinder cylOnYPositiveForSideNormalToXNegative = { ReferenceFrame({-roundedBox.extents.x, roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
+	Cylinder cylOnYNegativeForSideNormalToXNegative = { ReferenceFrame({-roundedBox.extents.x, -roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
+	MyDrawWireframeCapsule(capsForSideNormalToXNegative, nSectors, nParallels, color);
+	MyDrawWireframeCylinder(cylOnYPositiveForSideNormalToXNegative, nSectors, false, color);
+	MyDrawWireframeCylinder(cylOnYNegativeForSideNormalToXNegative, nSectors, false, color);
+
+	Capsule capsForSideNormalToYNegative = { ReferenceFrame({roundedBox.extents.x, 0, -roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius };
+	Cylinder cylOnYPositiveForSideNormalToYNegative = { ReferenceFrame({0, roundedBox.extents.y, -roundedBox.extents.z}, qPiOn2RotatedOnZ), roundedBox.extents.x, roundedBox.radius };
+	Cylinder cylOnYNegativeForSideNormalToYNegative = { ReferenceFrame({0, -roundedBox.extents.y, -roundedBox.extents.z}, qPiOn2RotatedOnZ), roundedBox.extents.x, roundedBox.radius };
+	MyDrawWireframeCapsule(capsForSideNormalToYNegative, nSectors, nParallels, color);
+	MyDrawWireframeCylinder(cylOnYPositiveForSideNormalToYNegative, nSectors, false, color);
+	MyDrawWireframeCylinder(cylOnYNegativeForSideNormalToYNegative, nSectors, false, color);
+
+	rlPopMatrix();
+}
+
+void MyDrawRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels, bool
+	drawPolygon = true, bool drawWireframe = true, Color polygonColor = LIGHTGRAY,
+	Color wireframeColor = DARKGRAY) {
+	if (drawPolygon) MyDrawPolygonRoundedBox(roundedBox, nSectors, nParallels, polygonColor);
+	if (drawWireframe) MyDrawWireframeRoundedBox(roundedBox, nSectors, nParallels, wireframeColor);
 }
 #pragma endregion;
 
@@ -1172,29 +1360,33 @@ int main(int argc, char* argv[])
 
 			// TESTS AFFICHAGE PRIMITIVES 3D
 			// Pour tester, décommenter les parties de code suivantes
-			// QUAD DISPLAY TEST
+			//// QUAD DISPLAY TEST
 			//Quad quad = { ref1,{4,0,4} };
 			//MyDrawQuad(quad);
 
-			// BOX DISPLAY TEST
+			//// BOX DISPLAY TEST
 			//Box box = { ref2, {4, 4, 8} };
 			//MyDrawBox(box, true, true);
 
-			// DISK DISPLAY TEST
+			//// DISK DISPLAY TEST
 			//Disk d = { ref2, 5 };
 			//MyDrawDisk(d, 30);
 
-			// CYLINDER DISPLAY TEST
+			//// CYLINDER DISPLAY TEST
 			//Cylinder c = { ref3, 2, 1};
 			//MyDrawCylinder(c, 10, true);
 
-			// SPHERE DISPLAY TEST
+			//// SPHERE DISPLAY TEST
 			//Sphere s = { ref2, 4 };
 			//MyDrawPolygonSphere(s, 10, 10);
 
-			// CAPSULE DISPLAY TEST
+			//// CAPSULE DISPLAY TEST
 			//Capsule cap = { ref3, 3, 1 };
 			//MyDrawPolygonCapsule(cap, 15, 10);
+
+			//// ROUNDED BOX DISPLAY TEST
+			RoundedBox rb = { ref2, {7, 10, 5}, 6 };
+			MyDrawRoundedBox(rb, 10, 10, true, true);
 
 			
 			//TESTS INTERSECTIONS
@@ -1204,10 +1396,10 @@ int main(int argc, char* argv[])
 
 			// THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
-			Segment segment = { {-5,8,0},{5,-8,3} };
-			DrawLine3D(segment.pt1, segment.pt2, BLACK);
-			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			//Segment segment = { {-5,8,0},{5,-8,3} };
+			//DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			//MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			//MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
 			// TEST LINE PLANE INTERSECTION
 			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
