@@ -774,17 +774,16 @@ bool IntersectLinePlane(Line line, Plane plane, float& t, Vector3& interPt, Vect
 	return true;
 }
 
-// Idem, sauf que dans le cas d'un segment, il faut vérifier que t est compris entre 0 et 1.
 bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
 	Vector3& interNormal) {
 	Vector3 dir = Vector3Subtract(seg.pt1, seg.pt2);			// peut importe l'ordre de pt1 et pt2 dans la soustr
 	float dotProd = Vector3DotProduct(plane.normal, dir);
 	if (fabsf(dotProd) < EPSILON) return false;
 
-	t = (plane.d - Vector3DotProduct(plane.normal, seg.pt1)) / dotProd;
-	// std::cout << "t=" << t << "\n";
-	if (t > 0 || t < -1) return false;
-	interPt = Vector3Add(seg.pt1, Vector3Scale(dir, t)); // OM = OA+tAB
+	t = fabsf((plane.d - Vector3DotProduct(plane.normal, seg.pt1)) / dotProd);
+	//std::cout << "t=" << t << "\n";
+	if (t < 0 || t > 1) return false;
+	interPt = Vector3Subtract(seg.pt1, Vector3Scale(dir, t)); // OM = OA+tAB
 	interNormal = Vector3Scale(plane.normal,
 		Vector3DotProduct(Vector3Subtract(seg.pt1, interPt), plane.normal) < 0 ? -1.f : 1.f);
 	return true;
