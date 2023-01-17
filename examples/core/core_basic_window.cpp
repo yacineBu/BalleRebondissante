@@ -1253,6 +1253,76 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 	return isInter;
 }
 
+/// <summary>
+/// 
+/// </summary>
+/// <param name="seg"></param>
+/// <param name="rndBox"></param>
+/// <param name="t"></param>
+/// <param name="interPt"></param>
+/// <param name="interNormal"></param>
+/// <returns></returns>
+bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
+	Vector3& interPt, Vector3& interNormal) {
+
+	// Le même type de Map que dans IntersectSegmentBox(), mais capable de stocker plusieurs type de primitives.
+	// Le int indique le type de l'object :
+	//	0 -> Quad
+	//	1 -> Capsule
+	//	2 -> Cylindre
+	std::map<float, std::pair<void*, int>> rbPrimitives;
+	float piOn2 = PI / 2;
+	Vector3 originForNextPrimitive;
+	float distancePrimPt1ForNextPrim;
+	std::pair<void*, int> pairVoidIntForNextPrim;
+
+	Vector3 extentsForQuadsOnX = { rndBox.extents.y, 0, rndBox.extents.z };
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Scale(rndBox.ref.i, rndBox.extents.x + rndBox.radius));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Quad sideNormalToXPositive = { {originForNextPrimitive, QuaternionMultiply(rndBox.ref.q, QuaternionFromAxisAngle({0, 0, 1}, -piOn2))}, extentsForQuadsOnX };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToXPositive, 0);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	//originForNextPrimitive = Vector3Subtract(box.ref.origin, Vector3Scale(box.ref.i, box.extents.x));
+	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	//Quad sideNormalToXNegative = { {originForNextPrimitive, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({0, 0, 1}, piOn2))}, extentsForQuadsOnX };
+	//boxQuads.insert(std::pair<float, Quad>(distancePrimPt1ForNextPrim, sideNormalToXNegative));
+
+	//Vector3 extentsForQuadsOnY = { box.extents.x, 0, box.extents.z };
+	//originForNextPrimitive = Vector3Add(box.ref.origin, Vector3Scale(box.ref.j, box.extents.y));
+	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	//Quad sideNormalToYPositive = { {originForNextPrimitive, box.ref.q}, extentsForQuadsOnY };
+	//boxQuads.insert(std::pair<float, Quad>(distancePrimPt1ForNextPrim, sideNormalToYPositive));
+
+	//originForNextPrimitive = Vector3Subtract(box.ref.origin, Vector3Scale(box.ref.j, box.extents.y));
+	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	//Quad sideNormalToYNegative = { {originForNextPrimitive, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({0, 0, 1}, PI))}, extentsForQuadsOnY };
+	//boxQuads.insert(std::pair<float, Quad>(distancePrimPt1ForNextPrim, sideNormalToYNegative));
+
+	//Vector3 extentsForQuadsOnZ = { box.extents.x, 0, box.extents.y };
+	//originForNextPrimitive = Vector3Add(box.ref.origin, Vector3Scale(box.ref.k, box.extents.z));
+	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	//Quad sideNormalToZPositive = { {originForNextPrimitive, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({1, 0, 0}, piOn2))}, extentsForQuadsOnZ };
+	//boxQuads.insert(std::pair<float, Quad>(distancePrimPt1ForNextPrim, sideNormalToZPositive));
+
+	//originForNextPrimitive = Vector3Subtract(box.ref.origin, Vector3Scale(box.ref.k, box.extents.z));
+	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	//Quad sideNormalToZNegative = { {originForNextPrimitive, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({1, 0, 0}, -piOn2))}, extentsForQuadsOnZ };
+	//boxQuads.insert(std::pair<float, Quad>(distancePrimPt1ForNextPrim, sideNormalToZNegative));
+
+	for (std::map<float, std::pair<void*, int>>::iterator it = rbPrimitives.begin(); it != rbPrimitives.end(); ++it) {
+
+		// TESTER LE DESSIN DES QUAD
+		MyDrawQuad(*((Quad*)it->second.first));
+		
+		//if (IntersectSegmentQuad(seg, it->second, t, interPt, interNormal)) {
+		//	return true;
+		//}
+	}
+
+	return false;
+}
+
 #pragma endregion;
 
 #pragma region Camera;
@@ -1409,8 +1479,8 @@ int main(int argc, char* argv[])
 			//MyDrawPolygonCapsule(cap, 15, 10);
 
 			//// ROUNDED BOX DISPLAY TEST
-			RoundedBox rb = { ref2, {7, 10, 5}, 2 };
-			MyDrawRoundedBox(rb, 10, 10, true, true);
+			//RoundedBox rb = { ref2, {7, 10, 5}, 2 };
+			//MyDrawRoundedBox(rb, 10, 10, true, true);
 
 			
 			//TESTS INTERSECTIONS
@@ -1420,10 +1490,10 @@ int main(int argc, char* argv[])
 
 			// THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
-			//Segment segment = { {-5,8,0},{5,-8,3} };
-			//DrawLine3D(segment.pt1, segment.pt2, BLACK);
-			//MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			//MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			Segment segment = { {-5,8,0},{5,-8,3} };
+			DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
 			// TEST LINE PLANE INTERSECTION
 			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},time
@@ -1492,6 +1562,11 @@ int main(int argc, char* argv[])
 			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			//}
+
+			// TEST SEGM RB INTERSECTION
+			RoundedBox rb = { ref2, {7, 10, 5}, 2 };
+			MyDrawRoundedBox(rb, 10, 10);
+			IntersectSegmentRoundedBox(segment, rb, t, interPt, interNormal);
 			
 
 		}
