@@ -799,6 +799,13 @@ void MyDrawCapsule(Capsule capsule, int nSectors, int nParallels, bool
 	if (drawWireframe) MyDrawWireframeCapsule(capsule, nSectors, nParallels, wireframeColor);
 }
 
+/// <summary>
+/// Dessine une Rounded Box en polygones
+/// </summary>
+/// <param name="roundedBox">La Rounded Box à dessiner</param>
+/// <param name="nSectors">Nombre de secteurs désiré pour le tracé des cylindres</param>
+/// <param name="nParallels">Nombre de parallèles désiré pour le tracé des sphères, géré pendant le tracé des capsules</param>
+/// <param name="color">Couleur des polygones</param>
 void MyDrawPolygonRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels, Color
 	color = LIGHTGRAY) {
 	rlPushMatrix();
@@ -869,6 +876,13 @@ void MyDrawPolygonRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels
 	rlPopMatrix();
 }
 
+/// <summary>
+/// Dessine une Rounded Box en wireframe
+/// </summary>
+/// <param name="roundedBox">La Rounded Box à dessiner</param>
+/// <param name="nSectors">Nombre de secteurs désiré pour le tracé des cylindres</param>
+/// <param name="nParallels">Nombre de parallèles désiré pour le tracé des sphères, géré pendant le tracé des capsules</param>
+/// <param name="color">Couleur des polygones</param>
 void MyDrawWireframeRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels, Color
 	color = LIGHTGRAY) {
 	rlPushMatrix();
@@ -939,6 +953,16 @@ void MyDrawWireframeRoundedBox(RoundedBox roundedBox, int nSectors, int nParalle
 	rlPopMatrix();
 }
 
+/// <summary>
+/// Dessine une Rounded Box en polygones ou en wireframe, ou les 2 combinés.
+/// </summary>
+/// <param name="roundedBox">La Rounded Box à dessiner</param>
+/// <param name="nSectors">Nombre de secteurs désiré pour le tracé des cylindres</param>
+/// <param name="nParallels">Nombre de parallèles désiré pour le tracé des sphères, géré pendant le tracé des capsules</param>
+/// <param name="drawPolygon">Demande le tracé en polygones</param>
+/// <param name="drawWireframe">Demande le tracé en wireframe</param>
+/// <param name="polygonColor">Couleur des polygones</param>
+/// <param name="wireframeColor">Couleur des wireframe</param>
 void MyDrawRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels, bool
 	drawPolygon = true, bool drawWireframe = true, Color polygonColor = LIGHTGRAY,
 	Color wireframeColor = DARKGRAY) {
@@ -1385,7 +1409,7 @@ int main(int argc, char* argv[])
 			//MyDrawPolygonCapsule(cap, 15, 10);
 
 			//// ROUNDED BOX DISPLAY TEST
-			RoundedBox rb = { ref2, {7, 10, 5}, 6 };
+			RoundedBox rb = { ref2, {7, 10, 5}, 2 };
 			MyDrawRoundedBox(rb, 10, 10, true, true);
 
 			
