@@ -1006,7 +1006,7 @@ bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
 }
 
 /// <summary>
-/// Indique s'il y a intersection entre le segment et le Quad donnés
+/// Indique si il y a intersection entre un segment et un Quad
 /// </summary>
 /// <param name="seg">Le segment à tester</param>
 /// <param name="quad">Le Quad à tester</param>
@@ -1030,21 +1030,22 @@ bool IntersectSegmentQuad(Segment seg, Quad quad, float& t, Vector3& interPt, Ve
 }
 
 /// <summary>
-/// Blabla
+/// Indique si il y a intersection entre un segment et une Box
 /// Méthode utilisé également pour le test de l'OBB.
 /// </summary>
-/// <param name="seg"></param>
-/// <param name="box"></param>
-/// <param name="t"></param>
-/// <param name="interPt"></param>
-/// <param name="interNormal"></param>
-/// <returns></returns>
+/// <param name="seg">Le segment à tester</param>
+/// <param name="box">La Box à tester</param>
+/// <param name="t">Si intersection detecté, indique la position du point d'intersection dans le segment. t est compris entre 0 et 1</param>
+/// <param name="interPt">Si intersection detecté, indique la position du point d'intersection dans le monde</param>
+/// <param name="interNormal">Si intersection detecté, indique le vecteur normal à la surface de la primitive, où est localisé interPt</param>
+/// <returns>True si l'intersection existe, False sinon</returns>
 bool IntersectSegmentBox(Segment seg, Box box, float& t, Vector3& interPt,
 	Vector3& interNormal) {
 
 	// La Map permet de stocker les Quads de la Box ainsi que leur distance entre leur origines et le pt1 du segment.
+	// Il est préférable d'utiliser une multimap plutôt qu'une map, de manière à pouvoir stocker des Quads qui possèderaient la même distance (donc la même clé).
 	// Au moment du test d'intersection, le Quad qui a la plus courte distance sera traité en premier, et celui qui a la plus longue en dernier.
-	std::map<float, Quad> boxQuads;
+	std::multimap<float, Quad> boxQuads;
 	float piOn2 = PI / 2;
 	Vector3 originForNextQuad;
 	float distanceQuadPt1ForNextQuad;
@@ -1084,7 +1085,7 @@ bool IntersectSegmentBox(Segment seg, Box box, float& t, Vector3& interPt,
 	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToZNegative));
 
 	// Test des intersections en commencant par le Quad le plus proche du pt1 du segment
-	for (std::map<float, Quad>::iterator it = boxQuads.begin(); it != boxQuads.end(); ++it) {
+	for (std::multimap<float, Quad>::iterator it = boxQuads.begin(); it != boxQuads.end(); ++it) {
 
 		if (IntersectSegmentQuad(seg, it->second, t, interPt, interNormal)) {
 			return true;
@@ -1094,7 +1095,15 @@ bool IntersectSegmentBox(Segment seg, Box box, float& t, Vector3& interPt,
 	return false;
 }
 
-// réparer la signature de la méthode (* -> &) pour les pts de qualité du code
+/// <summary>
+/// 
+/// </summary>
+/// <param name="seg"></param>
+/// <param name="sph"></param>
+/// <param name="t"></param>
+/// <param name="interPt"></param>
+/// <param name="interNormal"></param>
+/// <returns></returns>
 bool IntersectSegmentSphere(Segment seg, Sphere sph, float& t, Vector3& interPt, Vector3& interNormal) {
 
 	Vector3 vecteurAB = Vector3Subtract(seg.pt2, seg.pt1); // vecteur AB
@@ -1115,7 +1124,7 @@ bool IntersectSegmentSphere(Segment seg, Sphere sph, float& t, Vector3& interPt,
 
 	t = (-b - sqrtf(delta)) / (2 * a);
 
-	std::cout << "t=" << t << "\n";
+	//std::cout << "t=" << t << "\n";
 
 	if (t < 0 || t > 1) return false;
 
@@ -1200,12 +1209,12 @@ bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& inte
 /// <summary>
 /// Indique si il y a intersection entre un segment et une capsule
 /// </summary>
-/// <param name="seg"></param>
-/// <param name="capsule"></param>
-/// <param name="t"></param>
-/// <param name="interPt"></param>
-/// <param name="interNormal"></param>
-/// <returns>True pour intersection, False sinon</returns>
+/// <param name="seg">Le segment à tester</param>
+/// <param name="capsule">La Capsule à tester</param>
+/// <param name="t">Si intersection detecté, indique la position du point d'intersection dans le segment. t est compris entre 0 et 1</param>
+/// <param name="interPt">Si intersection detecté, indique la position du point d'intersection dans le monde</param>
+/// <param name="interNormal">Si intersection detecté, indique le vecteur normal à la surface de la primitive, où est localisé interPt</param>
+/// <returns>True si l'intersection existe, False sinon</returns>
 bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& interPt, Vector3& interNormal) {
 
 	// OBB
@@ -1260,25 +1269,30 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 }
 
 /// <summary>
-/// 
+/// Indique si il y a intersection entre un segment et une Rounded Box
 /// </summary>
-/// <param name="seg"></param>
-/// <param name="rndBox"></param>
-/// <param name="t"></param>
-/// <param name="interPt"></param>
-/// <param name="interNormal"></param>
-/// <returns></returns>
+/// <param name="seg">Le segment à tester</param>
+/// <param name="rndBox">La Rounded Box à tester</param>
+/// <param name="t">Si intersection detecté, indique la position du point d'intersection dans le segment. t est compris entre 0 et 1</param>
+/// <param name="interPt">Si intersection detecté, indique la position du point d'intersection dans le monde</param>
+/// <param name="interNormal">Si intersection detecté, indique le vecteur normal à la surface de la primitive, où est localisé interPt</param>
+/// <returns>True si l'intersection existe, False sinon</returns>
 bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 	Vector3& interPt, Vector3& interNormal) {
 
-	// OBB TODO ICI
+	// OBB
+	ReferenceFrame refObb = ReferenceFrame(rndBox.ref.origin, rndBox.ref.q);
+	Vector3 extentsObb = { rndBox.extents.x + rndBox.radius, rndBox.extents.y + rndBox.radius, rndBox.extents.z + rndBox.radius };
+	Box obb = { refObb, extentsObb };
+	if (!IntersectSegmentBox(seg, obb, t, interPt, interNormal))
+		return false;
 
 	// Le même type de Map que dans IntersectSegmentBox(), mais capable de stocker plusieurs types de primitives.
 	// Le int indique le type de l'object :
 	//	0 -> Quad
 	//	1 -> Cylindre
 	//	2 -> Capsule
-	std::map<float, std::pair<void*, int>> rbPrimitives;
+	std::multimap<float, std::pair<void*, int>> rbPrimitives;
 	std::pair<void*, int> pairVoidIntForNextPrim;
 
 	float piOn2 = PI / 2;
@@ -1337,10 +1351,10 @@ bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToZNegative, 0);
 	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
-	
+
 	// Construction des 1 * 4 capsules et des 3 * 4 cylindres
-	Quaternion qRb_x_qPiOn2RotatedOnX = QuaternionMultiply(rndBox.ref.q, qPiOn2RotatedOnX);		// !!!!!!!!!!!!!!!!!
-	Quaternion qRb_x_qPiOn2RotatedOnZ = QuaternionMultiply(rndBox.ref.q, qPiOn2RotatedOnZ);		// !!!!!!!!!!!!!!!!!
+	Quaternion qRb_x_qPiOn2RotatedOnX = QuaternionMultiply(rndBox.ref.q, qPiOn2RotatedOnX);
+	Quaternion qRb_x_qPiOn2RotatedOnZ = QuaternionMultiply(rndBox.ref.q, qPiOn2RotatedOnZ);
 
 	// Au niveau du premier quad
 	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Add(vectExtentX, vectExtentZ));
@@ -1387,61 +1401,58 @@ bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 	pairVoidIntForNextPrim = std::pair<void*, int>(&capsForSideNormalToXNegative, 2);
 	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
-	//originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Subtract(vectExtentZ, vectExtentY));
-	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
-	//Cylinder cylOnYPositiveForSideNormalToXNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnX), rndBox.extents.z, rndBox.radius };
-	//pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYPositiveForSideNormalToXNegative, 1);
-	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Subtract(vectExtentX, vectExtentY));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Cylinder cylOnYPositiveForSideNormalToXNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnX), rndBox.extents.z, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYPositiveForSideNormalToXNegative, 1);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
-	//originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Add(vectExtentZ, vectExtentY));
-	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
-	//Cylinder cylOnYNegativeForSideNormalToXNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnX), rndBox.extents.z, rndBox.radius };
-	//pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYNegativeForSideNormalToXNegative, 1);
-	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Add(vectExtentX, vectExtentY));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Cylinder cylOnYNegativeForSideNormalToXNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnX), rndBox.extents.z, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYNegativeForSideNormalToXNegative, 1);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
 	// Au niveau du 4ème quad
-	//originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Add(vectExtentX, vectExtentZ));
-	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
-	//Capsule capsForSideNormalToYNegative = { ReferenceFrame(originForNextPrimitive, qId), rndBox.extents.y, rndBox.radius };
-	//pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToZNegative, 2);
-	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Subtract(vectExtentX, vectExtentZ));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Capsule capsForSideNormalToYNegative = { ReferenceFrame(originForNextPrimitive, rndBox.ref.q), rndBox.extents.y, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&capsForSideNormalToYNegative, 2);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
-	//originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Subtract(vectExtentZ, vectExtentY));		// ok
-	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
-	//Cylinder cylOnYPositiveForSideNormalToYNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnZ), rndBox.extents.x, rndBox.radius };
-	//pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToZNegative, 1);
-	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Subtract(vectExtentZ, vectExtentY));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Cylinder cylOnYPositiveForSideNormalToYNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnZ), rndBox.extents.x, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYPositiveForSideNormalToYNegative, 1);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
-	//originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Add(vectExtentZ, vectExtentY));		// ok
-	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
-	//Cylinder cylOnYNegativeForSideNormalToYNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnZ), rndBox.extents.x, rndBox.radius };
-	//pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToZNegative, 1);
-	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Add(vectExtentZ, vectExtentY));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Cylinder cylOnYNegativeForSideNormalToYNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnZ), rndBox.extents.x, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYNegativeForSideNormalToYNegative, 1);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
 
 	Quad* quadToTest;
 	Cylinder* cylToTest;
 	Capsule* capsToTest;
 
-	for (std::map<float, std::pair<void*, int>>::iterator it = rbPrimitives.begin(); it != rbPrimitives.end(); ++it) {
+	for (std::multimap<float, std::pair<void*, int>>::iterator it = rbPrimitives.begin(); it != rbPrimitives.end(); ++it) {
 
 		if (it->second.second == 0) {
 			quadToTest = (Quad*)it->second.first;
-			MyDrawQuad(*quadToTest);		// temp
 			if (IntersectSegmentQuad(seg, *quadToTest, t, interPt, interNormal)) {
 				return true;
 			}
 		}
 		else if (it->second.second == 1) {
 			cylToTest = (Cylinder*)it->second.first;
-			MyDrawCylinder(*cylToTest, 10);		// temp
 			if (IntersectSegmentCylinder(seg, *cylToTest, t, interPt, interNormal)) {
 				return true;
 			}
 		}
 		else {
 			capsToTest = (Capsule*)it->second.first;
-			MyDrawCapsule(*capsToTest, 10, 10);		// temp
 			if (IntersectSegmentCapsule(seg, *capsToTest, t, interPt, interNormal)) {
 				return true;
 			}
@@ -1578,6 +1589,10 @@ int main(int argc, char* argv[])
 				{ 6, 0, 4 },
 				QuaternionIdentity()
 			);
+			ReferenceFrame ref7 = ReferenceFrame(
+				{ -20, -2, 4 },
+				QuaternionIdentity()
+			);
 
 
 			// TESTS AFFICHAGE PRIMITIVES 3D
@@ -1619,14 +1634,10 @@ int main(int argc, char* argv[])
 			// THE SEGMENT (on ne peut pas dessiner de droite avec raylib, c'est pour ca qu'on créer un segment)
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
 			Segment segment = { {-5,8,0},{5,-8,3} };
-			DrawLine3D(segment.pt1, segment.pt2, BLACK);
-			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
-			Segment segment2 = { {20,15,15},{19,15,15} };
-			DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
-			MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			MyDrawPolygonSphere({ {segment2.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			Segment segment2 = { {-7,15,-10},{0,0,0} };
+
+			Segment segmentALouest = { {20,15,15},{19,15,15} };
 
 			// TEST LINE PLANE INTERSECTION
 			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},PI /2)), 2 };
@@ -1696,12 +1707,59 @@ int main(int argc, char* argv[])
 			//}
 
 			// TEST SEGM RB INTERSECTION
-			RoundedBox rb = { refBase, {2, 7, 5}, 2 };
-			//MyDrawRoundedBox(rb, 10, 10);
+			RoundedBox rb = { refBase, {2, 7, 5}, 4 };
+			MyDrawRoundedBox(rb, 10, 10);
+			DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
+			MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			MyDrawPolygonSphere({ {segment2.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 			if (IntersectSegmentRoundedBox(segment2, rb, t, interPt, interNormal)) {
 				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			}
+
+			// STRESS TEST
+			//RoundedBox rb = { ref3, {2, 7, 5}, 2 };
+			//MyDrawRoundedBox(rb, 10, 10);
+			//if (IntersectSegmentRoundedBox(segment, rb, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
+
+			//rb = { refALouest, {2, 7, 5}, 2 };
+			//MyDrawRoundedBox(rb, 10, 10);
+			//if (IntersectSegmentRoundedBox(segment, rb, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
+
+			//rb = { ref2, {2, 7, 5}, 2 };
+			//MyDrawRoundedBox(rb, 10, 10);
+			//if (IntersectSegmentRoundedBox(segment, rb, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
+
+			//rb = { ref4, {2, 7, 5}, 2 };
+			//MyDrawRoundedBox(rb, 10, 10);
+			//if (IntersectSegmentRoundedBox(segment, rb, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
+
+			//rb = { ref6, {2, 7, 5}, 2 };
+			//MyDrawRoundedBox(rb, 10, 10);
+			//if (IntersectSegmentRoundedBox(segment, rb, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
+
+			//rb = { ref7, {2, 7, 5}, 2 };
+			//MyDrawRoundedBox(rb, 10, 10);
+			//if (IntersectSegmentRoundedBox(segment, rb, t, interPt, interNormal)) {
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
+
 
 		}
 		EndMode3D();
