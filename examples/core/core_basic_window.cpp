@@ -846,6 +846,7 @@ void MyDrawPolygonRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels
 	Quaternion qPiOn2RotatedOnX = QuaternionFromAxisAngle({ 1, 0, 0 }, piOn2);
 	Quaternion qPiOn2RotatedOnZ = QuaternionFromAxisAngle({ 0, 0, 1 }, piOn2);
 
+	// Dessin des 1 * 4 capsules et des 3 * 4 cylindres
 	Capsule capsForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, 0, roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius};
 	Cylinder cylOnYPositiveForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
 	Cylinder cylOnYNegativeForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, -roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
@@ -923,6 +924,7 @@ void MyDrawWireframeRoundedBox(RoundedBox roundedBox, int nSectors, int nParalle
 	Quaternion qPiOn2RotatedOnX = QuaternionFromAxisAngle({ 1, 0, 0 }, piOn2);
 	Quaternion qPiOn2RotatedOnZ = QuaternionFromAxisAngle({ 0, 0, 1 }, piOn2);
 
+	// Dessin des 1 * 4 capsules et des 3 * 4 cylindres
 	Capsule capsForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, 0, roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius };
 	Cylinder cylOnYPositiveForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
 	Cylinder cylOnYNegativeForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, -roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
@@ -1081,6 +1083,7 @@ bool IntersectSegmentBox(Segment seg, Box box, float& t, Vector3& interPt,
 	Quad sideNormalToZNegative = { {originForNextQuad, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({1, 0, 0}, -piOn2))}, extentsForQuadsOnZ };
 	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToZNegative));
 
+	// Test des intersections en commencant par le Quad le plus proche du pt1 du segment
 	for (std::map<float, Quad>::iterator it = boxQuads.begin(); it != boxQuads.end(); ++it) {
 
 		if (IntersectSegmentQuad(seg, it->second, t, interPt, interNormal)) {
@@ -1270,52 +1273,151 @@ bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 
 	// OBB TODO ICI
 
-	// Le même type de Map que dans IntersectSegmentBox(), mais capable de stocker plusieurs type de primitives.
+	// Le même type de Map que dans IntersectSegmentBox(), mais capable de stocker plusieurs types de primitives.
 	// Le int indique le type de l'object :
 	//	0 -> Quad
 	//	1 -> Cylindre
 	//	2 -> Capsule
 	std::map<float, std::pair<void*, int>> rbPrimitives;
-	float piOn2 = PI / 2;
-	Vector3 originForNextPrimitive;
-	float distancePrimPt1ForNextPrim;
 	std::pair<void*, int> pairVoidIntForNextPrim;
 
+	float piOn2 = PI / 2;
+	Quaternion qPiOn2RotatedOnX = QuaternionFromAxisAngle({ 1, 0, 0 }, piOn2);
+	Quaternion qPiOn2RotatedOnZ = QuaternionFromAxisAngle({ 0, 0, 1 }, piOn2);
+	Quaternion qId = QuaternionIdentity();
+	Vector3 originForNextPrimitive;
+	float distancePrimPt1ForNextPrim;
+
+	// Vecteurs qui représentent les extents de la rounded box en coordonnées globales, utiles
+	// pour positionner les primitives
+	Vector3 vectExtentX = LocalToGlobalVect({ rndBox.extents.x , 0, 0 }, rndBox.ref);
+	Vector3 vectExtentXWithRadius = LocalToGlobalVect({ rndBox.extents.x + rndBox.radius, 0, 0 }, rndBox.ref);
+	Vector3 vectExtentY = LocalToGlobalVect({ 0, rndBox.extents.y, 0 }, rndBox.ref);
+	Vector3 vectExtentYWithRadius = LocalToGlobalVect({ 0, rndBox.extents.y + rndBox.radius, 0 }, rndBox.ref);
+	Vector3 vectExtentZ = LocalToGlobalVect({ 0 , 0, rndBox.extents.z }, rndBox.ref);
+	Vector3 vectExtentZWithRadius = LocalToGlobalVect({ 0 , 0, rndBox.extents.z + rndBox.radius}, rndBox.ref);
+
+	// Construction des 6 Quads
 	Vector3 extentsForQuadsOnX = { rndBox.extents.y, 0, rndBox.extents.z };
-	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Scale(rndBox.ref.i, rndBox.extents.x + rndBox.radius));
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, vectExtentXWithRadius);
 	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
 	Quad sideNormalToXPositive = { {originForNextPrimitive, QuaternionMultiply(rndBox.ref.q, QuaternionFromAxisAngle({0, 0, 1}, -piOn2))}, extentsForQuadsOnX };
 	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToXPositive, 0);
 	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
-	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Scale(rndBox.ref.i, rndBox.extents.x + rndBox.radius));
+	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, vectExtentXWithRadius);
 	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
 	Quad sideNormalToXNegative = { {originForNextPrimitive, QuaternionMultiply(rndBox.ref.q, QuaternionFromAxisAngle({0, 0, 1}, piOn2))}, extentsForQuadsOnX };
 	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToXNegative, 0);
 	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
 	Vector3 extentsForQuadsOnY = { rndBox.extents.x, 0, rndBox.extents.z };
-	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Scale(rndBox.ref.j, rndBox.extents.y + rndBox.radius));
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, vectExtentYWithRadius);
 	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
 	Quad sideNormalToYPositive = { {originForNextPrimitive, rndBox.ref.q}, extentsForQuadsOnY };
 	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToYPositive, 0);
 	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
-	//originForNextPrimitive = Vector3Subtract(box.ref.origin, Vector3Scale(box.ref.j, box.extents.y));
-	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
-	//Quad sideNormalToYNegative = { {originForNextPrimitive, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({0, 0, 1}, PI))}, extentsForQuadsOnY };
-	//boxQuads.insert(std::pair<float, Quad>(distancePrimPt1ForNextPrim, sideNormalToYNegative));
+	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, vectExtentYWithRadius);
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Quad sideNormalToYNegative = { {originForNextPrimitive, QuaternionMultiply(rndBox.ref.q, QuaternionFromAxisAngle({0, 0, 1}, PI))}, extentsForQuadsOnY };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToYNegative, 0);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
-	//Vector3 extentsForQuadsOnZ = { box.extents.x, 0, box.extents.y };
-	//originForNextPrimitive = Vector3Add(box.ref.origin, Vector3Scale(box.ref.k, box.extents.z));
-	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
-	//Quad sideNormalToZPositive = { {originForNextPrimitive, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({1, 0, 0}, piOn2))}, extentsForQuadsOnZ };
-	//boxQuads.insert(std::pair<float, Quad>(distancePrimPt1ForNextPrim, sideNormalToZPositive));
+	Vector3 extentsForQuadsOnZ = { rndBox.extents.x, 0, rndBox.extents.y };
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, vectExtentZWithRadius);
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Quad sideNormalToZPositive = { {originForNextPrimitive, QuaternionMultiply(rndBox.ref.q, QuaternionFromAxisAngle({1, 0, 0}, piOn2))}, extentsForQuadsOnZ };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToZPositive, 0);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
-	//originForNextPrimitive = Vector3Subtract(box.ref.origin, Vector3Scale(box.ref.k, box.extents.z));
+	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, vectExtentZWithRadius);
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Quad sideNormalToZNegative = { {originForNextPrimitive, QuaternionMultiply(rndBox.ref.q, QuaternionFromAxisAngle({1, 0, 0}, -piOn2))}, extentsForQuadsOnZ };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToZNegative, 0);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	
+	// Construction des 1 * 4 capsules et des 3 * 4 cylindres
+	Quaternion qRb_x_qPiOn2RotatedOnX = QuaternionMultiply(rndBox.ref.q, qPiOn2RotatedOnX);		// !!!!!!!!!!!!!!!!!
+	Quaternion qRb_x_qPiOn2RotatedOnZ = QuaternionMultiply(rndBox.ref.q, qPiOn2RotatedOnZ);		// !!!!!!!!!!!!!!!!!
+
+	// Au niveau du premier quad
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Add(vectExtentX, vectExtentZ));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Capsule capsForSideNormalToXPositive = { ReferenceFrame(originForNextPrimitive, rndBox.ref.q), rndBox.extents.y, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&capsForSideNormalToXPositive, 2);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Add(vectExtentX, vectExtentY));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Cylinder cylOnYPositiveForSideNormalToXPositive = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnX), rndBox.extents.z, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYPositiveForSideNormalToXPositive, 1);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Subtract(vectExtentX, vectExtentY));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Cylinder cylOnYNegativeForSideNormalToXPositive = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnX), rndBox.extents.z, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYNegativeForSideNormalToXPositive, 1);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	// Au niveau du 2ème quad
+	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Subtract(vectExtentX, vectExtentZ));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Capsule capsForSideNormalToYPositive = { ReferenceFrame(originForNextPrimitive, rndBox.ref.q), rndBox.extents.y, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&capsForSideNormalToYPositive, 2);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Add(vectExtentZ, vectExtentY));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Cylinder cylOnYPositiveForSideNormalToYPositive = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnZ), rndBox.extents.x, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYPositiveForSideNormalToYPositive, 1);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Subtract(vectExtentZ, vectExtentY));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Cylinder cylOnYNegativeForSideNormalToYPositive = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnZ), rndBox.extents.x, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYNegativeForSideNormalToYPositive, 1);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	// Au niveau du 3ème quad
+	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Add(vectExtentX, vectExtentZ));
+	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	Capsule capsForSideNormalToXNegative = { ReferenceFrame(originForNextPrimitive, rndBox.ref.q), rndBox.extents.y, rndBox.radius };
+	pairVoidIntForNextPrim = std::pair<void*, int>(&capsForSideNormalToXNegative, 2);
+	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	//originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Subtract(vectExtentZ, vectExtentY));
 	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
-	//Quad sideNormalToZNegative = { {originForNextPrimitive, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({1, 0, 0}, -piOn2))}, extentsForQuadsOnZ };
-	//boxQuads.insert(std::pair<float, Quad>(distancePrimPt1ForNextPrim, sideNormalToZNegative));
+	//Cylinder cylOnYPositiveForSideNormalToXNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnX), rndBox.extents.z, rndBox.radius };
+	//pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYPositiveForSideNormalToXNegative, 1);
+	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	//originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Add(vectExtentZ, vectExtentY));
+	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	//Cylinder cylOnYNegativeForSideNormalToXNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnX), rndBox.extents.z, rndBox.radius };
+	//pairVoidIntForNextPrim = std::pair<void*, int>(&cylOnYNegativeForSideNormalToXNegative, 1);
+	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	// Au niveau du 4ème quad
+	//originForNextPrimitive = Vector3Add(rndBox.ref.origin, Vector3Add(vectExtentX, vectExtentZ));
+	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	//Capsule capsForSideNormalToYNegative = { ReferenceFrame(originForNextPrimitive, qId), rndBox.extents.y, rndBox.radius };
+	//pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToZNegative, 2);
+	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	//originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Subtract(vectExtentZ, vectExtentY));		// ok
+	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	//Cylinder cylOnYPositiveForSideNormalToYNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnZ), rndBox.extents.x, rndBox.radius };
+	//pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToZNegative, 1);
+	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
+	//originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, Vector3Add(vectExtentZ, vectExtentY));		// ok
+	//distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	//Cylinder cylOnYNegativeForSideNormalToYNegative = { ReferenceFrame(originForNextPrimitive, qRb_x_qPiOn2RotatedOnZ), rndBox.extents.x, rndBox.radius };
+	//pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToZNegative, 1);
+	//rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
+
 
 	Quad* quadToTest;
 	Cylinder* cylToTest;
@@ -1521,6 +1623,11 @@ int main(int argc, char* argv[])
 			MyDrawPolygonSphere({ {segment.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
 			MyDrawPolygonSphere({ {segment.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
 
+			Segment segment2 = { {20,15,15},{19,15,15} };
+			DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
+			MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			MyDrawPolygonSphere({ {segment2.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+
 			// TEST LINE PLANE INTERSECTION
 			//Plane plane = { Vector3RotateByQuaternion({0,1,0}, QuaternionFromAxisAngle({1,0,0},PI /2)), 2 };
 			//// (on ne peut pas dessiner un plan avec raylib, du coup on rpz ca avec un quad)
@@ -1588,14 +1695,13 @@ int main(int argc, char* argv[])
 			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			//}
 
-			//// TEST SEGM RB INTERSECTION
-			////Segment segment2 = { {20,15,15},{19,15,15} };
-			//RoundedBox rb = { ref2, {2, 7, 5}, 2 };
-			////MyDrawRoundedBox(rb, 10, 10);
-			//if (IntersectSegmentRoundedBox(segment, rb, t, interPt, interNormal)) {
-			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-			//}
+			// TEST SEGM RB INTERSECTION
+			RoundedBox rb = { refBase, {2, 7, 5}, 2 };
+			//MyDrawRoundedBox(rb, 10, 10);
+			if (IntersectSegmentRoundedBox(segment2, rb, t, interPt, interNormal)) {
+				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			}
 
 		}
 		EndMode3D();
