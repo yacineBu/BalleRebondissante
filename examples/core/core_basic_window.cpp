@@ -1152,58 +1152,140 @@ bool IntersectSegmentDisk(Segment seg, Disk disk, float& t, Vector3& interPt, Ve
 }
 */
 
-// penser à tester l'argument t
-// Attention : l'intersection avec les chapeaux ne marchent pas (après ca se trouve c'est même pas à faire..)
-bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& interPt, Vector3& interNormal) {
+bool IntersectSegmentInfiniteCylinder(Segment seg, Cylinder cyl, float& t, Vector3& interPt, Vector3& interNormal) {
+	// Valeurs initiales simples
+	Vector3 ptA = seg.pt1;
+	Vector3 ptB = seg.pt2;
+	Vector3 ptP = Vector3Subtract(cyl.ref.origin, LocalToGlobalVect({0, 1, 0}, cyl.ref));
+	Vector3 ptQ = Vector3Add(cyl.ref.origin, LocalToGlobalVect({ 0, 1, 0 }, cyl.ref));
+	float r = cyl.radius;
 
-	Vector3 cylDir = Vector3RotateByQuaternion({ 0,1,0 }, cyl.ref.q);
+	Vector3 AB = Vector3Subtract(ptB, ptA);
+	Vector3 PQ = Vector3Subtract(ptQ, ptP);
+	Vector3 PA = Vector3Subtract(ptA, ptP);
 
-	Vector3 A = Vector3Add(cyl.ref.origin, Vector3Scale(cylDir, -cyl.halfHeight));		// bas du cyl
-	Vector3 B = Vector3Add(cyl.ref.origin, Vector3Scale(cylDir, cyl.halfHeight));		// haut du cyl
-	float r = cyl.radius;			// rayon
-	Vector3 start = seg.pt1;
-	Vector3 dir = Vector3Normalize(Vector3Subtract(seg.pt2, seg.pt1));
+	float ABdotPQ = Vector3DotProduct(AB, PQ);
+	float PAdotPQ = Vector3DotProduct(PA, PQ);
+	float ABdotPA = Vector3DotProduct(AB, PA);
 
-	double cxmin, cymin, czmin, cxmax, cymax, czmax;
-	if (A.z < B.z) {
-		czmin = A.z - r; czmax = B.z + r;
-	}
-	else {
-		czmin = B.z - r; czmax = A.z + r;
-	}
-	if (A.y < B.y) {
-		cymin = A.y - r; cymax = B.y + r;
-	}
-	else {
-		cymin = B.y - r; cymax = A.y + r;
-	}
-	if (A.x < B.x) {
-		cxmin = A.x - r; cxmax = B.x + r;
-	}
-	else {
-		cxmin = B.x - r; cxmax = A.x + r;
-	}
+	float ABcarre = Vector3DotProduct(AB, AB);
+	float PQcarre = Vector3DotProduct(PQ, PQ);
+	float PAcarre = Vector3DotProduct(PA, PA);
+	float ABPQcarre = powf(ABdotPQ, 2);
 
-	Vector3 AB = Vector3Subtract(B, A);
-	Vector3 AO = Vector3Subtract(start, A);
-	Vector3 AOxAB = Vector3CrossProduct(AO, AB);
-	Vector3 VxAB = Vector3CrossProduct(dir, AB);
-	double ab2 = Vector3DotProduct(AB, AB);
-	double a = Vector3DotProduct(VxAB, VxAB);
-	double b = 2 * Vector3DotProduct(VxAB, AOxAB);
-	double c = Vector3DotProduct(AOxAB, AOxAB) - (r * r * ab2);
-	double d = b * b - 4 * a * c;
-	if (d <= 0) return false;
-	t = (-b - sqrt(d)) / (2 * a);		// tester
-	//std::cout << "t=" << t << "\n";
+	float PAdotPQcarre = powf(PAdotPQ, 2);
 
-	if (time < 0) return false;
+	float ABPQsurPQcarre = ABdotPQ / PQcarre;
+	float PAPQsurPQcarre = PAdotPQ / PQcarre;
+	float PAPQcarreeSurPQcaree = PAdotPQcarre / PQcarre;
 
-	interPt = Vector3Add(start, Vector3Scale(dir, t));
-	Vector3 projection = Vector3Add(A, Vector3Scale(AB, (Vector3DotProduct(AB, Vector3Subtract(interPt, A)) / ab2)));
-	if (Vector3Length(Vector3Subtract(projection, A)) + Vector3Length(Vector3Subtract(B, projection)) > Vector3Length(AB) || Vector3Distance(start, interPt) > Vector3Distance(seg.pt1, seg.pt2)) return false;
-	interNormal = Vector3Normalize(Vector3Subtract(interPt, projection));
+	// Soit at² + bt + c = 0
+	float a = ABcarre - 2 * ABPQcarre / PQcarre + powf(ABPQsurPQcarre, 2) * PQcarre;
+	float b = 2 * (ABdotPA - ABPQsurPQcarre * PAdotPQ - PAPQsurPQcarre * ABdotPQ + ABPQsurPQcarre * PAPQsurPQcarre * PQcarre);
+	float c = PAcarre - 2 * PAPQcarreeSurPQcaree + powf(PAPQsurPQcarre, 2) * PQcarre - powf(r, 2);
+
+	if (a < EPSILON) return false;
+
+	// Discriminant
+	float discriminant = powf(b, 2) - 4 * a * c;
+
+	// test sur discriminant
+	if (discriminant < 0) return false;
+
+	// calculs racines
+	t = 0;
+	float racineDiscriminant = sqrtf(discriminant);
+	float t1 = (-b - racineDiscriminant) / (2 * a);
+	float t2 = (-b + racineDiscriminant) / (2 * a);
+	t = t1 < t2 ? t1 : t2;
+
+	// test sur t
+	if (t < 0 || t > 1) return false;
+
+	// interPt
+	interPt = Vector3Add(ptA, Vector3Scale(AB, t));
+
+	// Valeurs initiales
+	Vector3 OInter = interPt;//Vector3Subtract(interPt, {0,0,0});
+	Vector3 OP = ptP;//Vector3Subtract(ptP, {0,0,0});
+	Vector3 PInter = Vector3Subtract(interPt, ptP);
+	float PQdotPInter = Vector3DotProduct(PQ, PInter);
+
+	// ON = OP + (PQdotPInter / PQcarre) * PQ
+	float PQdotPInterSurPQCarre = PQdotPInter / PQcarre;
+	Vector3 ON = Vector3Add(OP, Vector3Scale(PQ, PQdotPInterSurPQCarre));
+	Vector3 NI = Vector3Subtract(OInter, ON);
+
+	// set interNormal
+	interNormal = Vector3Normalize(NI);
+
 	return true;
+}
+
+bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& interPt, Vector3& interNormal) {
+	bool cylinderIsIntersec = IntersectSegmentInfiniteCylinder(seg, cyl, t, interPt, interNormal);
+	bool isIntersec = false;
+
+	Vector3 pt1 = Vector3Subtract(cyl.ref.origin, LocalToGlobalVect({ 0, 1, 0 }, cyl.ref));
+	Vector3 pt2 = Vector3Add(cyl.ref.origin, LocalToGlobalVect({ 0, 1, 0 }, cyl.ref));
+
+
+	Vector3 PInter = Vector3Subtract(interPt, pt1);
+	Vector3 PQ = Vector3Subtract(pt2, pt1);
+	float PInterdotPQ = Vector3DotProduct(PInter, PQ);
+	float PQcarre = Vector3DotProduct(PQ, PQ);
+
+	if (cylinderIsIntersec) {
+		if (PInterdotPQ < 0 || PInterdotPQ > PQcarre) {
+			Vector3 maxInterPt = { FLT_MAX };
+			Vector3 tmpInterPt;
+			Vector3 tmpInterNormal;
+
+			//// Test de collision avec le premier disque du cylindre
+			//bool isDiskIntersec = InterSegDisk(seg, { Referential(cyl.pt1), cyl.radius }, tmpInterPt, tmpInterNormal);
+			//if (isDiskIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(maxInterPt, seg.pt1)) {
+			//	interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+			//	interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+			//	maxInterPt = interPt;
+			//	isIntersec = true;
+			//}
+
+			//// Test de collision avec le second disque du cylindre
+			//bool isDiskIntersec2 = InterSegDisk(seg, { Referential(cyl.pt2), cyl.radius }, tmpInterPt, tmpInterNormal);
+			//if (isDiskIntersec2 && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(maxInterPt, seg.pt1)) {
+			//	interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+			//	interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+			//	isIntersec = true;
+			//}
+		}
+		else {
+			isIntersec = true;
+		}
+	}
+	else {
+		Vector3 maxInterPt = { FLT_MAX };
+		Vector3 tmpInterPt;
+		Vector3 tmpInterNormal;
+
+		//// Test de collision avec le premier disque du cylindre
+		//bool isDiskIntersec = InterSegDisk(seg, { Referential(cyl.pt1), cyl.radius }, tmpInterPt, tmpInterNormal);
+		//if (isDiskIntersec && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(maxInterPt, seg.pt1)) {
+		//	interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		//	interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		//	maxInterPt = interPt;
+		//	isIntersec = true;
+		//}
+
+		//// Test de collision avec le second disque du cylindre
+		//bool isDiskIntersec2 = InterSegDisk(seg, { Referential(cyl.pt2), cyl.radius }, tmpInterPt, tmpInterNormal);
+		//if (isDiskIntersec2 && Vector3Distance(tmpInterPt, seg.pt1) < Vector3Distance(maxInterPt, seg.pt1)) {
+		//	interPt = { tmpInterPt.x, tmpInterPt.y, tmpInterPt.z };
+		//	interNormal = { tmpInterNormal.x, tmpInterNormal.y, tmpInterNormal.z };
+		//	isIntersec = true;
+		//}
+	}
+
+	return isIntersec;
 }
 
 /// <summary>
@@ -1279,6 +1361,8 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 /// <returns>True si l'intersection existe, False sinon</returns>
 bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 	Vector3& interPt, Vector3& interNormal) {
+	// Pour corriger le problème de savoir quels primitive le segment intersecte en premier, je pourrais tester l'intersection
+	// avec toutes les primitives, puis à la fin retourner le pt avec le plus petit t.
 
 	// OBB
 	ReferenceFrame refObb = ReferenceFrame(rndBox.ref.origin, rndBox.ref.q);
@@ -1441,18 +1525,21 @@ bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 
 		if (it->second.second == 0) {
 			quadToTest = (Quad*)it->second.first;
+			MyDrawQuad(*quadToTest);
 			if (IntersectSegmentQuad(seg, *quadToTest, t, interPt, interNormal)) {
 				return true;
 			}
 		}
 		else if (it->second.second == 1) {
 			cylToTest = (Cylinder*)it->second.first;
+			MyDrawCylinder(*cylToTest, 10);
 			if (IntersectSegmentCylinder(seg, *cylToTest, t, interPt, interNormal)) {
 				return true;
 			}
 		}
 		else {
 			capsToTest = (Capsule*)it->second.first;
+			MyDrawCapsule(*capsToTest, 10, 10);
 			if (IntersectSegmentCapsule(seg, *capsToTest, t, interPt, interNormal)) {
 				return true;
 			}
@@ -1561,13 +1648,17 @@ int main(int argc, char* argv[])
 				{ 0, 0, 0 },
 				QuaternionIdentity()
 			);
+			ReferenceFrame refBaseTime = ReferenceFrame(
+				{ 0, 0, 0 },
+				QuaternionFromAxisAngle({0,0,1}, time)
+			);
 			ReferenceFrame ref1 = ReferenceFrame(
 				{ 0,2,0 },
 				QuaternionFromAxisAngle(Vector3Normalize({ 1,1,1 }), PI / 4)
 			);
 			ReferenceFrame ref2 = ReferenceFrame(
 				{3, 1, 0},
-				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 3)
+				QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 3 )
 			);
 			ReferenceFrame ref2QReversed = ReferenceFrame(
 				{ 3, 1, 0 },
@@ -1635,7 +1726,7 @@ int main(int argc, char* argv[])
 			// une expression entre acollades sigifie qu'un nouvel objet du bon type est crée (comme new en java)
 			Segment segment = { {-5,8,0},{5,-8,3} };
 
-			Segment segment2 = { {-7,15,-10},{0,0,0} };
+			Segment segment2 = { {0,15,-10},{0,0,0} };
 
 			Segment segmentALouest = { {20,15,15},{19,15,15} };
 
@@ -1707,7 +1798,7 @@ int main(int argc, char* argv[])
 			//}
 
 			// TEST SEGM RB INTERSECTION
-			RoundedBox rb = { refBase, {2, 7, 5}, 4 };
+			RoundedBox rb = { refBaseTime, {2, 7, 5}, 4 };
 			MyDrawRoundedBox(rb, 10, 10);
 			DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
 			MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
@@ -1716,6 +1807,18 @@ int main(int argc, char* argv[])
 				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			}
+
+			// BUG 
+			//RoundedBox rb = { ref2, {2, 7, 5}, 4 };
+			////MyDrawRoundedBox(rb, 10, 10);
+			//DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
+			//MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			//MyDrawPolygonSphere({ {segment2.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			//if (IntersectSegmentRoundedBox(segment2, rb, t, interPt, interNormal)) {
+			//	std::cout << "inter!\n";
+			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			//}
 
 			// STRESS TEST
 			//RoundedBox rb = { ref3, {2, 7, 5}, 2 };
