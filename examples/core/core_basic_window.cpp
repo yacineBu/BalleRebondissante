@@ -231,8 +231,7 @@ Vector3 LocalToGlobalVect(Vector3 localVect, ReferenceFrame localRef) {
 /// <returns>Point exprimé en coordonnées locales</returns>
 Vector3 GlobalToLocalPos(Vector3 globalPos, ReferenceFrame localRef)
 {
-	Vector3 worldOrigin = { 0,0,0 };
-	Vector3 globalVect = Vector3Subtract(Vector3Subtract(globalPos, worldOrigin), Vector3Subtract(localRef.origin, worldOrigin));
+	Vector3 globalVect = Vector3Subtract(globalPos, localRef.origin);
 
 	return GlobalToLocalVect(globalVect, localRef);
 }
@@ -244,9 +243,8 @@ Vector3 GlobalToLocalPos(Vector3 globalPos, ReferenceFrame localRef)
 /// <param name="localRef">Référentiel local source</param>
 /// <returns>Point exprimé en coordonnées globales</returns>
 Vector3 LocalToGlobalPos(Vector3 localPos, ReferenceFrame localRef) {
-	Vector3 worldOrigin = { 0,0,0 };
 
-	return Vector3Add(Vector3Subtract(localRef.origin, worldOrigin), LocalToGlobalVect(localPos, localRef));
+	return Vector3Add(localRef.origin, LocalToGlobalVect(localPos, localRef));
 }
 #pragma endregion;
 
@@ -1690,12 +1688,13 @@ int main(int argc, char* argv[])
 			//}
 
 			// TEST SEGM QUAD INTERSECTION
-			//Quad quad = { refBase, {10, 0, 2} };
-			//MyDrawQuad(quad);
-			//if (IntersectSegmentQuad(segment, quad, t, interPt, interNormal)) {
-			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-			//}
+			Quad quad = { refBase, {10, 0, 2} };
+			DrawLine3D(segment.pt1, segment.pt2, BLACK);
+			MyDrawQuad(quad);
+			if (IntersectSegmentQuad(segment, quad, t, interPt, interNormal)) {
+				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+			}
 
 			// TEST SEGM BOX INTERSECTION
 			//Box box = { refBase, {3, 6, 4} };
@@ -1726,17 +1725,17 @@ int main(int argc, char* argv[])
 			// TEST SEGM CAPSULE INTERSECTION
 			//Capsule cap = { ref2, 8, 5 };
 			//MyDrawPolygonCapsule(cap, 15, 15);
-			//Segment segment2 = { {2,15,15},{3,-15,-15} };
-			//DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
-			//MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-			//MyDrawPolygonSphere({ {segment2.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
-			//if (IntersectSegmentCapsule(segment2, cap, t, interPt, interNormal)) {
+			//Segment segmentc = { {2,15,15},{3,-15,-15} };
+			//DrawLine3D(segmentc.pt1, segmentc.pt2, BLACK);
+			//MyDrawPolygonSphere({ {segmentc.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+			//MyDrawPolygonSphere({ {segmentc.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+			//if (IntersectSegmentCapsule(segmentc, cap, t, interPt, interNormal)) {
 			//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 			//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 			//}
 
 			// TEST SEGM RB INTERSECTION
-			RoundedBox rb = { refBaseTime, {2, 7, 5}, 4 };
+			/*RoundedBox rb = { refBaseTime, {2, 7, 5}, 4 };
 			MyDrawRoundedBox(rb, 10, 10);
 			DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
 			MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
@@ -1744,7 +1743,7 @@ int main(int argc, char* argv[])
 			if (IntersectSegmentRoundedBox(segment2, rb, t, interPt, interNormal)) {
 				MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 				DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-			}
+			}*/
 
 			// STRESS TEST
 			//RoundedBox rb = { ref3, {2, 7, 5}, 2 };
