@@ -1002,6 +1002,7 @@ bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
 
 	t = (plane.d - Vector3DotProduct(plane.normal, seg.pt1)) / dotProd;
 	//std::cout << "t=" << t << "\n";
+	if (t < 0 || t > 1) return false;
 	interPt = Vector3Add(seg.pt1, Vector3Scale(dir, t));
 	interNormal = Vector3Scale(plane.normal,
 		Vector3DotProduct(Vector3Subtract(seg.pt1, interPt), plane.normal) < 0 ? -1.f : 1.f);
@@ -1847,7 +1848,7 @@ int main(int argc, char* argv[])
 
 	// BALL
 	ReferenceFrame ballRef = ReferenceFrame(
-		{ 10, 10, 0 },
+		{ 30, 30, 0 },
 		QuaternionIdentity()
 	);
 	Vector3 transVectInit = Vector3Scale({ -1, -1, 0 }, 3);
@@ -1857,7 +1858,7 @@ int main(int argc, char* argv[])
 	std::vector<RoundedBox> obstacles;
 	ReferenceFrame obstacle1Ref = ReferenceFrame(
 		{ 0, 0, 0 },
-		QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), PI / 3)
+		QuaternionFromAxisAngle(Vector3Normalize({ 0,0,1 }), 0.6)
 	);
 	RoundedBox obstacle1 = { obstacle1Ref, {2,3,4}, 1 };
 	obstacles.push_back(obstacle1);
@@ -1875,6 +1876,7 @@ int main(int argc, char* argv[])
 		//----------------------------------------------------------------------------------
 
 		float deltaTime = GetFrameTime();		// Indique le temps en seconde écoulé entre la frame précédente et la frame actuelle
+		std::cout << "deltaTime=" << deltaTime << "\n";
 		float time = (float)GetTime();
 
 		MyUpdateOrbitalCamera(&camera, deltaTime);
@@ -1896,7 +1898,7 @@ int main(int argc, char* argv[])
 
 			// Mise à jour de l'état de la balle, pour appliquer les modifications
 			// entre la frame précédente et la frame actuelle
-			UpdateBall(ball, obstacles, deltaTime);
+			UpdateBall(ball, obstacles, 0.016667);
 
 			// Puis on dessine le resultat
 			DrawScene(ball.sphere, obstacles);
