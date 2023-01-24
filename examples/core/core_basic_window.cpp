@@ -1470,7 +1470,7 @@ bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 		}
 		else if (it->second.second == 1) {
 			cylToTest = (Cylinder*)it->second.first;
-			//MyDrawCylinder(*cylToTest, 10);		// !!!!!!!!!!!!!!!!!!!!!!!!!!
+			//MyDrawCylinder(*cylToTest, 10);
 			if (IntersectSegmentCylinder(seg, *cylToTest, t, interPt, interNormal)) {
 				return true;
 			}
@@ -1725,13 +1725,13 @@ void Tests() {
 	//}
 
 	// TEST SEGM QUAD INTERSECTION
-	Quad quad = { refBase, {10, 0, 2} };
-	DrawLine3D(segment.pt1, segment.pt2, BLACK);
-	MyDrawQuad(quad);
-	if (IntersectSegmentQuad(segment, quad, t, interPt, interNormal)) {
-		MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-		DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-	}
+	//Quad quad = { refBase, {10, 0, 2} };
+	//DrawLine3D(segment.pt1, segment.pt2, BLACK);
+	//MyDrawQuad(quad);
+	//if (IntersectSegmentQuad(segment, quad, t, interPt, interNormal)) {
+	//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+	//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+	//}
 
 	// TEST SEGM BOX INTERSECTION
 	//Box box = { refBase, {3, 6, 4} };
@@ -1760,16 +1760,16 @@ void Tests() {
 	*/
 
 	// TEST SEGM CAPSULE INTERSECTION
-	//Capsule cap = { ref2, 8, 5 };
-	//MyDrawPolygonCapsule(cap, 15, 15);
-	//Segment segmentc = { {2,15,15},{3,-15,-15} };
-	//DrawLine3D(segmentc.pt1, segmentc.pt2, BLACK);
-	//MyDrawPolygonSphere({ {segmentc.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-	//MyDrawPolygonSphere({ {segmentc.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
-	//if (IntersectSegmentCapsule(segmentc, cap, t, interPt, interNormal)) {
-	//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-	//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-	//}
+	Capsule cap = { ref2, 8, 5 };
+	MyDrawPolygonCapsule(cap, 15, 15);
+	Segment segmentc = { {2,15,15},{3,-15,-15} };
+	DrawLine3D(segmentc.pt1, segmentc.pt2, BLACK);
+	MyDrawPolygonSphere({ {segmentc.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+	MyDrawPolygonSphere({ {segmentc.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+	if (IntersectSegmentCapsule(segmentc, cap, t, interPt, interNormal)) {
+		MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+		DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+	}
 
 	// TEST SEGM RB INTERSECTION
 	/*RoundedBox rb = { refBaseTime, {2, 7, 5}, 4 };
@@ -1848,19 +1848,23 @@ int main(int argc, char* argv[])
 
 	// BALL
 	ReferenceFrame ballRef = ReferenceFrame(
-		{ 30, 30, 0 },
+		{ 13, 15, 15 },
 		QuaternionIdentity()
 	);
-	Vector3 transVectInit = Vector3Scale({ -1, -1, 0 }, 3);
+	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, 3);
 	BouncingSphere ball = { { ballRef, 2 }, transVectInit, Vector3Zero() };
 
 	// OBSTACLES
 	std::vector<RoundedBox> obstacles;
+	//ReferenceFrame obstacle1Ref = ReferenceFrame(
+	//	{ 0, 0, 0 },
+	//	QuaternionMultiply(QuaternionFromAxisAngle({0,0,1}, 0.2), QuaternionFromAxisAngle({ 0,1,0 }, PI/2 - 0.5))
+	//);
 	ReferenceFrame obstacle1Ref = ReferenceFrame(
 		{ 0, 0, 0 },
-		QuaternionFromAxisAngle(Vector3Normalize({ 0,0,1 }), 0.6)
+		QuaternionFromAxisAngle({ 0,0,1}, 0)
 	);
-	RoundedBox obstacle1 = { obstacle1Ref, {2,3,4}, 1 };
+	RoundedBox obstacle1 = { obstacle1Ref, {2,3,4}, 3 };
 	obstacles.push_back(obstacle1);
 
 
@@ -1876,7 +1880,6 @@ int main(int argc, char* argv[])
 		//----------------------------------------------------------------------------------
 
 		float deltaTime = GetFrameTime();		// Indique le temps en seconde écoulé entre la frame précédente et la frame actuelle
-		std::cout << "deltaTime=" << deltaTime << "\n";
 		float time = (float)GetTime();
 
 		MyUpdateOrbitalCamera(&camera, deltaTime);
@@ -1896,12 +1899,14 @@ int main(int argc, char* argv[])
 			DrawSphere({ 0,10,0 }, .2f, GREEN);
 			DrawSphere({ 0,0,10 }, .2f, BLUE);
 
-			// Mise à jour de l'état de la balle, pour appliquer les modifications
-			// entre la frame précédente et la frame actuelle
-			UpdateBall(ball, obstacles, 0.016667);
+			Tests();
 
-			// Puis on dessine le resultat
-			DrawScene(ball.sphere, obstacles);
+			//// Mise à jour de l'état de la balle, pour appliquer les modifications
+			//// entre la frame précédente et la frame actuelle
+			//UpdateBall(ball, obstacles, 0.016667);
+
+			//// Puis on dessine le resultat
+			//DrawScene(ball.sphere, obstacles);
 		}
 		EndMode3D();
 
