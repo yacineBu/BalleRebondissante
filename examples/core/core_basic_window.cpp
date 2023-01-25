@@ -1533,7 +1533,7 @@ void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
 }
 #pragma endregion;
 
-#pragma region Collision;
+#pragma region Bouncing;
 
 /// <summary>
 /// Dans l'état de la scène au moment de l'appel, vérifie la présence d'une intersection entre la sphère et la Rounded Box passées en paramètre.
@@ -1561,16 +1561,18 @@ bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 	Vector3& newPosition,
 	Vector3& newVelocity) {
 
-	// Un ptit com ici ptet
+	// Cet Rounded Box, qui est la somme de Minkowski entre la sphère et la rounded box obstacle, est utilisée
+	// pour déterminer si la sphère entre en collision avec la rounded box obtacle.
 	RoundedBox minkowskiSum = { rndBox.ref, rndBox.extents, rndBox.radius + sphere.radius };
-	MyDrawWireframeRoundedBox(minkowskiSum, 10, 10);		// temp
+	//MyDrawWireframeRoundedBox(minkowskiSum, 10, 10);
 
 	Segment translBetween2Frames = { sphere.ref.origin, Vector3Add(sphere.ref.origin, Vector3Scale(velocity, deltaTime)) };
 
 	if (IntersectSegmentRoundedBox(translBetween2Frames, minkowskiSum, colT, colSpherePos, colNormal)) {
-		// pour l'instant, je stoppe juste la sphère
-		newPosition = colSpherePos;
-		newVelocity = { 0,0,0 };
+		newVelocity = Vector3Reflect(velocity, colNormal);
+		float translBetween2FramesLen = Vector3Distance(translBetween2Frames.pt1, translBetween2Frames.pt2);
+		Vector3 remaining = Vector3Scale(Vector3Normalize(newVelocity), translBetween2FramesLen * (1 - colT));
+		newPosition = Vector3Add(colSpherePos, remaining);
 
 		return true;
 	}
@@ -1645,6 +1647,10 @@ void Tests() {
 		{ 0, 0, 2 },
 		QuaternionIdentity()
 	);
+	ReferenceFrame ref5 = ReferenceFrame(
+		{ 0, 0, 0 },
+		QuaternionMultiply(QuaternionFromAxisAngle(Vector3Normalize({ 0,1,0 }), PI / 4 - 0.1), QuaternionFromAxisAngle(Vector3Normalize({ 1,0,0 }), 0.3))
+	);
 	ReferenceFrame refALouest = ReferenceFrame(
 		{ 0, 0, 20 },
 		QuaternionIdentity()
@@ -1700,6 +1706,9 @@ void Tests() {
 	Segment segment = { {-5,8,0},{5,-8,3} };
 
 	Segment segment2 = { {0,15,-10},{0,0,0} };
+
+	Segment segment3 = { {0, 11.2116487, -7.81109978},{0, 9.20, -5.80} };
+
 
 	Segment segmentALouest = { {20,15,15},{19,15,15} };
 
@@ -1760,27 +1769,28 @@ void Tests() {
 	*/
 
 	// TEST SEGM CAPSULE INTERSECTION
-	Capsule cap = { ref2, 8, 5 };
-	MyDrawPolygonCapsule(cap, 15, 15);
-	Segment segmentc = { {2,15,15},{3,-15,-15} };
-	DrawLine3D(segmentc.pt1, segmentc.pt2, BLACK);
-	MyDrawPolygonSphere({ {segmentc.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-	MyDrawPolygonSphere({ {segmentc.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
-	if (IntersectSegmentCapsule(segmentc, cap, t, interPt, interNormal)) {
+	//Capsule cap = { ref2, 8, 5 };
+	//MyDrawPolygonCapsule(cap, 15, 15);
+	//Segment segmentc = { {2,15,15},{3,-15,-15} };
+	//DrawLine3D(segmentc.pt1, segmentc.pt2, BLACK);
+	//MyDrawPolygonSphere({ {segmentc.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+	//MyDrawPolygonSphere({ {segmentc.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+	//if (IntersectSegmentCapsule(segmentc, cap, t, interPt, interNormal)) {
+	//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+	//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+	//}
+
+	// TEST SEGM RB INTERSECTION
+	RoundedBox rb = { ref5, {2, 7, 5}, 4 };
+	MyDrawRoundedBox(rb, 10, 10);
+	DrawLine3D(segment3.pt1, segment3.pt2, BLACK);
+	//MyDrawPolygonSphere({ {segment3.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+	//MyDrawPolygonSphere({ {segment3.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+	if (IntersectSegmentRoundedBox(segment3, rb, t, interPt, interNormal)) {
+		std::cout << "inter\n";
 		MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 		DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 	}
-
-	// TEST SEGM RB INTERSECTION
-	/*RoundedBox rb = { refBaseTime, {2, 7, 5}, 4 };
-	MyDrawRoundedBox(rb, 10, 10);
-	DrawLine3D(segment2.pt1, segment2.pt2, BLACK);
-	MyDrawPolygonSphere({ {segment2.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-	MyDrawPolygonSphere({ {segment2.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
-	if (IntersectSegmentRoundedBox(segment2, rb, t, interPt, interNormal)) {
-		MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-		DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-	}*/
 
 	// STRESS TEST
 	//RoundedBox rb = { ref3, {2, 7, 5}, 2 };
@@ -1847,19 +1857,18 @@ int main(int argc, char* argv[])
 	SetCameraMode(camera, CAMERA_CUSTOM);  // Set an orbital camera mode
 
 	// BALL
+	// pour tester collision avec sphère : 
+	//{ 13, 15, 15 },
+	//Vector3Scale({ -1, -0.9, -1 }, 10);
 	ReferenceFrame ballRef = ReferenceFrame(
-		{ 13, 15, 15 },
+		{ 30, 0, 0 },
 		QuaternionIdentity()
 	);
-	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, 3);
+	Vector3 transVectInit = Vector3Scale({ -1, -0.18, 0 }, 30);		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
 	BouncingSphere ball = { { ballRef, 2 }, transVectInit, Vector3Zero() };
 
 	// OBSTACLES
 	std::vector<RoundedBox> obstacles;
-	//ReferenceFrame obstacle1Ref = ReferenceFrame(
-	//	{ 0, 0, 0 },
-	//	QuaternionMultiply(QuaternionFromAxisAngle({0,0,1}, 0.2), QuaternionFromAxisAngle({ 0,1,0 }, PI/2 - 0.5))
-	//);
 	ReferenceFrame obstacle1Ref = ReferenceFrame(
 		{ 0, 0, 0 },
 		QuaternionFromAxisAngle({ 0,0,1}, 0)
@@ -1899,14 +1908,14 @@ int main(int argc, char* argv[])
 			DrawSphere({ 0,10,0 }, .2f, GREEN);
 			DrawSphere({ 0,0,10 }, .2f, BLUE);
 
-			Tests();
+			//Tests();
 
 			//// Mise à jour de l'état de la balle, pour appliquer les modifications
 			//// entre la frame précédente et la frame actuelle
-			//UpdateBall(ball, obstacles, 0.016667);
+			UpdateBall(ball, obstacles, deltaTime);			// en mode debug, passer 0.016667
 
 			//// Puis on dessine le resultat
-			//DrawScene(ball.sphere, obstacles);
+			DrawScene(ball.sphere, obstacles);
 		}
 		EndMode3D();
 
