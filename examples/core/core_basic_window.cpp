@@ -135,8 +135,14 @@ struct Sphere {
 struct BouncingSphere {
 	Sphere sphere;
 	Vector3 translVect;		// Indique la translation de la sphère entre 2 frames.
-							// La norme de ce vecteur indique la vitesse de déplacement de la sphère.
-	Vector3 rotVect;
+							// Son axe indique la direction et son sens de déplacement.
+							// Sa norme indique la vitesse de déplacement de la sphère.
+	
+	Vector3 rotVect;		// Indique le comportement en rotation de la sphère entre 2 frames.
+							// Son axe indique l'axe de rotation et le sens de rotation.
+							// Sa norme indique la vitesse angulaire de rotation.
+	
+	float angularMomentum;	// Sert au calcul de rotVect
 };
 
 struct InfiniteCylinder {
@@ -1591,13 +1597,29 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 	
 	for each (RoundedBox obstacle in obstacles) {
 		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)) {
+			// std::cout << "inter\n";
 			ball.sphere.ref.origin = newPosition;
 			ball.translVect = newVelocity;
+			ApplyFriction();
 			return;
 		}
 	}
 
 	ball.sphere.ref.origin = Vector3Add(ball.sphere.ref.origin, Vector3Scale(ball.translVect, deltaTime));
+}
+
+/// <summary>
+/// Applique la force de frottement suite à une collision.
+/// Cela a pour unique conséquence de modifier le vecteur de rotation de la balle.
+/// </summary>
+/// <param name="rotVect"></param>
+void ApplyFriction(BouncingSphere& ball, float deltaTime, Vector3 colSpherePos, Vector3 colNormal) {
+	float const frictionCoef = 1.5;			// Coefficient à ajuster selon le résultat désiré
+	
+	//colNormal = Vector3Normalize(colNormal);		// !!!!!!!!!!!!!!!!!!!!!!!!!!
+	Vector3 contactPt = Vector3Add(colSpherePos, Vector3Scale(Vector3Negate(colNormal), ball.sphere.radius));
+
+	float angularMomentum
 }
 
 void DrawScene(Sphere ball, std::vector<RoundedBox> obstacles) {
@@ -1857,6 +1879,7 @@ int main(int argc, char* argv[])
 	SetCameraMode(camera, CAMERA_CUSTOM);  // Set an orbital camera mode
 
 	// BALL
+	// temp !!!!!!!!!!!!!!!!!!!!!!
 	// pour tester collision avec sphère : 
 	//{ 13, 15, 15 },
 	//Vector3Scale({ -1, -0.9, -1 }, 10);
@@ -1865,7 +1888,8 @@ int main(int argc, char* argv[])
 		QuaternionIdentity()
 	);
 	Vector3 transVectInit = Vector3Scale({ -1, -0.18, 0 }, 30);		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
-	BouncingSphere ball = { { ballRef, 2 }, transVectInit, Vector3Zero() };
+	Vector3 rotVectInit = Vector3Zero();
+	BouncingSphere ball = { { ballRef, 2 }, transVectInit, rotVectInit };
 
 	// OBSTACLES
 	std::vector<RoundedBox> obstacles;
