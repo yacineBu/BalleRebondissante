@@ -1604,7 +1604,8 @@ bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 /// Applique la force de frottement suite à une collision. Méthode utilisé par la méthode UpdateBall.
 /// Cela a pour unique conséquence de modifier le vecteur de rotation de la balle.
 /// </summary>
-void ApplyFriction(BouncingSphere& ball, float deltaTime, Vector3 colSpherePos, Vector3 colNormal) {
+/// <returns>Nouveau vecteur de rotation de la balle</returns>
+Vector3 ApplyFriction(BouncingSphere ball, float deltaTime, Vector3 colSpherePos, Vector3 colNormal) {
 	float const frictionCoef = 10;			// Coefficient à ajuster selon le résultat désiré
 
 	colNormal = Vector3Normalize(colNormal);
@@ -1626,7 +1627,7 @@ void ApplyFriction(BouncingSphere& ball, float deltaTime, Vector3 colSpherePos, 
 	);
 
 	float angularVelocity = sqrt(Vector3Length(angularMomentum) / ball.momentOfInertia);
-	ball.rotVect = Vector3Scale(Vector3Normalize(angularMomentum), angularVelocity);
+	return Vector3Scale(Vector3Normalize(angularMomentum), angularVelocity);
 }
 
 /// <summary>
@@ -1666,7 +1667,7 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 			// std::cout << "inter\n";
 			ball.sphere.ref.origin = newPosition;
 			ball.translVect = newVelocity;
-			ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
+			ball.rotVect = ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
 			ball.sphere.ref.q = computeNewOrient(ball, deltaTime);
 			return;
 		}
