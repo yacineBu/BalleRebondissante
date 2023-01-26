@@ -134,15 +134,29 @@ struct Sphere {
 
 struct BouncingSphere {
 	Sphere sphere;
-	Vector3 translVect;		// Indique la translation de la sphère entre 2 frames.
-							// Son axe indique la direction et son sens de déplacement.
-							// Sa norme indique la vitesse de déplacement de la sphère.
+
+	// Indique la translation de la sphère entre 2 frames.
+	// Son axe indique la direction et son sens de déplacement.
+	// Sa norme indique la vitesse de déplacement de la sphère.
+	Vector3 translVect;	
 	
-	Vector3 rotVect;		// Indique le comportement en rotation de la sphère entre 2 frames.
-							// Son axe indique l'axe de rotation et le sens de rotation.
-							// Sa norme indique la vitesse angulaire de rotation.
+	// Indique le comportement en rotation de la sphère entre 2 frames.
+	// Son axe indique l'axe de rotation et le sens de rotation.
+	// Sa norme indique la vitesse angulaire de rotation.
+	Vector3 rotVect;
 	
-	float angularMomentum;	// Sert au calcul de rotVect
+	float mass;
+	Vector3 angularMomentum;
+	float momentOfInertia;
+
+	BouncingSphere(Sphere sphere, Vector3 translVect, Vector3 rotVect, float mass) {
+		this->sphere = sphere;
+		this->translVect = translVect;
+		this->rotVect = rotVect;
+		this->mass = mass;
+		this->angularMomentum = Vector3Zero();
+		this->momentOfInertia = (2 * mass * pow(sphere.radius, 2) / 5);
+	}
 };
 
 struct InfiniteCylinder {
@@ -1586,6 +1600,58 @@ bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 	return false;
 }
 
+/// <summary>
+/// Applique la force de frottement suite à une collision. Méthode utilisé par la méthode UpdateBall.
+/// Cela a pour unique conséquence de modifier le vecteur de rotation de la balle.
+/// </summary>
+void ApplyFriction(BouncingSphere& ball, float deltaTime, Vector3 colSpherePos, Vector3 colNormal) {
+	float const frictionCoef = 10;			// Coefficient à ajuster selon le résultat désiré
+
+	colNormal = Vector3Normalize(colNormal);
+
+	Vector3 translVectTangentialComponent = Vector3Subtract(
+		ball.translVect,
+		Vector3Scale(colNormal, Vector3DotProduct(ball.translVect, colNormal))
+	);
+
+	Vector3 contactPt = Vector3Add(colSpherePos, Vector3Scale(Vector3Negate(colNormal), ball.sphere.radius));
+	Vector3 ballOriginToContactPt = Vector3Subtract(contactPt, ball.sphere.ref.origin);
+	Vector3 tangentialVelocity = Vector3CrossProduct(ball.rotVect, ballOriginToContactPt);
+
+	Vector3 tangentialRelativeVelocity = Vector3Add(translVectTangentialComponent, tangentialVelocity);
+
+	Vector3 angularMomentum = Vector3Subtract(
+		ball.angularMomentum,
+		Vector3Scale(Vector3CrossProduct(ballOriginToContactPt, tangentialRelativeVelocity), frictionCoef * deltaTime)
+	);
+
+	float angularVelocity = sqrt(Vector3Length(angularMomentum) / ball.momentOfInertia);
+	ball.rotVect = Vector3Scale(Vector3Normalize(angularMomentum), angularVelocity);
+}
+
+/// <summary>
+/// Calcule la nouvelle position de la balle en utilisant le vecteur de translation de la balle.
+/// Méthode utilisé lorsque aucune collision n'a été détectée.
+/// </summary>
+/// <param name="ball">La balle en mouvement</param>
+/// <param name="deltaTime">Le temps en seconde écoulé entre les 2 frames</param>
+/// <returns>Nouvelle position de la balle</returns>
+Vector3 computeNewPosition(BouncingSphere ball, float deltaTime) {
+	return Vector3Add(ball.sphere.ref.origin, Vector3Scale(ball.translVect, deltaTime));
+}
+
+/// <summary>
+/// Calcule la nouvelle orientation de la balle en utilisant le vecteur de rotation de la balle. 
+/// </summary>
+/// <param name="ball">La balle en mouvement</param>
+/// <param name="deltaTime">Le temps en seconde écoulé entre les 2 frames</param>
+/// <returns>Nouvelle orientation de la balle</returns>
+Quaternion computeNewOrient(BouncingSphere ball, float deltaTime) {
+	return QuaternionMultiply(ball.sphere.ref.q, QuaternionFromAxisAngle(Vector3Normalize(ball.rotVect), Vector3Length(ball.rotVect) * deltaTime));
+}
+
+
+
 void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float deltaTime) {
 	float colT;
 	Vector3 colSpherePos;
@@ -1600,30 +1666,18 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 			// std::cout << "inter\n";
 			ball.sphere.ref.origin = newPosition;
 			ball.translVect = newVelocity;
-			ApplyFriction();
+			ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
+			ball.sphere.ref.q = computeNewOrient(ball, deltaTime);
 			return;
 		}
 	}
 
-	ball.sphere.ref.origin = Vector3Add(ball.sphere.ref.origin, Vector3Scale(ball.translVect, deltaTime));
-}
-
-/// <summary>
-/// Applique la force de frottement suite à une collision.
-/// Cela a pour unique conséquence de modifier le vecteur de rotation de la balle.
-/// </summary>
-/// <param name="rotVect"></param>
-void ApplyFriction(BouncingSphere& ball, float deltaTime, Vector3 colSpherePos, Vector3 colNormal) {
-	float const frictionCoef = 1.5;			// Coefficient à ajuster selon le résultat désiré
-	
-	//colNormal = Vector3Normalize(colNormal);		// !!!!!!!!!!!!!!!!!!!!!!!!!!
-	Vector3 contactPt = Vector3Add(colSpherePos, Vector3Scale(Vector3Negate(colNormal), ball.sphere.radius));
-
-	float angularMomentum
+	ball.sphere.ref.q = computeNewOrient(ball, deltaTime);
+	ball.sphere.ref.origin = computeNewPosition(ball, deltaTime);
 }
 
 void DrawScene(Sphere ball, std::vector<RoundedBox> obstacles) {
-	MyDrawSphere(ball, 10, 10);
+	MyDrawSphere(ball, 4, 4);
 	for each (RoundedBox obstacle in obstacles) {
 		MyDrawRoundedBox(obstacle, 10, 10);
 	}
@@ -1887,9 +1941,10 @@ int main(int argc, char* argv[])
 		{ 30, 0, 0 },
 		QuaternionIdentity()
 	);
-	Vector3 transVectInit = Vector3Scale({ -1, -0.18, 0 }, 30);		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
+	Vector3 transVectInit = Vector3Scale({ -1, -0.1, 0 }, 10);		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
 	Vector3 rotVectInit = Vector3Zero();
-	BouncingSphere ball = { { ballRef, 2 }, transVectInit, rotVectInit };
+	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
+	BouncingSphere ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
 
 	// OBSTACLES
 	std::vector<RoundedBox> obstacles;
@@ -1940,6 +1995,19 @@ int main(int argc, char* argv[])
 
 			//// Puis on dessine le resultat
 			DrawScene(ball.sphere, obstacles);
+
+			
+			//std::cout << ball.rotVect.x << "\n";
+			//std::cout << ball.rotVect.y << "\n";
+			//std::cout << ball.rotVect.z << "\n";
+			//std::cout << Vector3Length(ball.rotVect) << "\n\n";
+
+			//std::cout << ball.sphere.ref.q.x << "\n";
+			//std::cout << ball.sphere.ref.q.y << "\n";
+			//std::cout << ball.sphere.ref.q.z << "\n";
+			//std::cout << ball.sphere.ref.q.w << "\n\n";
+
+
 		}
 		EndMode3D();
 
