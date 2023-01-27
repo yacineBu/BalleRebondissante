@@ -1159,6 +1159,74 @@ bool IntersectSegmentSphere(Segment seg, Sphere sph, float& t, Vector3& interPt,
 	return true;
 }
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//bool IntersectSegmentSphere(Segment seg, Sphere sphere, float& t, Vector3& interPt, Vector3& interNormal) {
+//	Vector3 AB = Vector3Subtract(seg.pt2, seg.pt1);
+//	Vector3 OmegaA = Vector3Subtract(seg.pt1, sphere.ref.origin);
+//
+//	float a = Vector3DotProduct(AB, AB);
+//	float b = 2 * Vector3DotProduct(AB, OmegaA);
+//	float c = Vector3DotProduct(OmegaA, OmegaA) - powf(sphere.radius, 2);
+//
+//	float discrimin = b * b - 4 * a * c; // Delta = b²-4ac
+//	if (discrimin < 0)
+//		// Pas de racine réelle
+//		return false;
+//
+//	t = 0.0f;
+//
+//	if (discrimin < EPSILON) {
+//		// Delta == 0 : Une racine double -b/2a
+//		t = -(b / (2 * a));
+//		interPt = Vector3Add(seg.pt1, Vector3Scale(AB, t));
+//	}
+//	else {
+//		// Delta > 0 : deux racines réelles
+//		discrimin = sqrtf(discrimin);
+//		float t1 = (-b + discrimin) / (2 * a);
+//		float t2 = (-b - discrimin) / (2 * a);
+//		t = t1 < t2 ? t1 : t2;
+//
+//		interPt = Vector3Add(seg.pt1, Vector3Scale(AB, t));
+//		//interPt = Vector3Scale(seg.pt1, t);
+//
+//		interNormal = Vector3Normalize(Vector3Subtract(interPt, sphere.ref.origin));
+//	}
+//
+//	if (t >= 0 && t <= 1)
+//		return true;
+//	return false;
+//}
+
+//bool IntersectSegmentSphere(Segment seg, Sphere s, float& t, Vector3& interPt, Vector3& interNormal) {
+//
+//	double a, b, c, t1, t2;
+//	double bb4ac;
+//	Vector3 AB = Vector3Normalize(Vector3Subtract(seg.pt2, seg.pt1));
+//	Vector3 AS = Vector3Subtract(seg.pt1, s.ref.origin);
+//
+//	a = Vector3DotProduct(AB, AB);
+//	b = 2 * Vector3DotProduct(AB, AS);
+//	c = Vector3DotProduct(s.ref.origin, s.ref.origin) + Vector3DotProduct(seg.pt1, seg.pt1) - 2 * Vector3DotProduct(s.ref.origin, seg.pt1) - s.radius * s.radius;
+//	bb4ac = b * b - 4 * a * c;
+//
+//	if (abs(a) < EPSILON || bb4ac < 0) {
+//		t1 = 0;
+//		t2 = 0;
+//		return false;
+//	}
+//
+//	t1 = (-b + sqrt(bb4ac)) / (2 * a);
+//	t2 = (-b - sqrt(bb4ac)) / (2 * a);
+//
+//	t = t2;
+//
+//	interPt = Vector3Add(seg.pt1, Vector3Scale(AB, t2));
+//	interNormal = Vector3Normalize(Vector3Subtract(interPt, s.ref.origin));
+//
+//	return Vector3Distance(interPt, seg.pt1) <= Vector3Distance(seg.pt1, seg.pt2);
+//}
+
 // todo : rendre fonctionnel l'argument t
 // ptet aussi que y'a moyen de la faire fonctionner avec plane
 /*
@@ -1323,11 +1391,11 @@ bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 	// avec toutes les primitives, puis à la fin retourner le pt avec le plus petit t.
 
 	// OBB
-	ReferenceFrame refObb = ReferenceFrame(rndBox.ref.origin, rndBox.ref.q);
-	Vector3 extentsObb = { rndBox.extents.x + rndBox.radius, rndBox.extents.y + rndBox.radius, rndBox.extents.z + rndBox.radius };
-	Box obb = { refObb, extentsObb };
-	if (!IntersectSegmentBox(seg, obb, t, interPt, interNormal))
-		return false;
+	//ReferenceFrame refObb = ReferenceFrame(rndBox.ref.origin, rndBox.ref.q);
+	//Vector3 extentsObb = { rndBox.extents.x + rndBox.radius, rndBox.extents.y + rndBox.radius, rndBox.extents.z + rndBox.radius };
+	//Box obb = { refObb, extentsObb };
+	//if (!IntersectSegmentBox(seg, obb, t, interPt, interNormal))
+	//	return false;
 
 	// Le même type de Map que dans IntersectSegmentBox(), mais capable de stocker plusieurs types de primitives.
 	// Le int indique le type de l'object :
@@ -1664,7 +1732,7 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 	
 	for each (RoundedBox obstacle in obstacles) {
 		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)) {
-			// std::cout << "inter\n";
+			std::cout << "inter\n";
 			ball.sphere.ref.origin = newPosition;
 			ball.translVect = newVelocity;
 			ball.rotVect = ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
@@ -1784,7 +1852,7 @@ void Tests() {
 
 	Segment segment2 = { {0,15,-10},{0,0,0} };
 
-	Segment segment3 = { {0, 11.2116487, -7.81109978},{0, 9.20, -5.80} };
+	Segment segment3 = { {0, 12.4014761, -8.99120325},{0, 10.0014761, -6.60120325} };
 
 
 	Segment segmentALouest = { {20,15,15},{19,15,15} };
@@ -1939,10 +2007,11 @@ int main(int argc, char* argv[])
 	//{ 13, 15, 15 },
 	//Vector3Scale({ -1, -0.9, -1 }, 10);
 	ReferenceFrame ballRef = ReferenceFrame(
-		{ 30, 0, 0 },
+		{ 13, 15, 15 },
 		QuaternionIdentity()
 	);
-	Vector3 transVectInit = Vector3Scale({ -1, -0.1, 0 }, 10);		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
+	float speed = 100;		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
+	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
 	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
 	BouncingSphere ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
@@ -1953,7 +2022,7 @@ int main(int argc, char* argv[])
 		{ 0, 0, 0 },
 		QuaternionFromAxisAngle({ 0,0,1}, 0)
 	);
-	RoundedBox obstacle1 = { obstacle1Ref, {2,3,4}, 3 };
+	RoundedBox obstacle1 = { obstacle1Ref, {2,3,4}, 4 };
 	obstacles.push_back(obstacle1);
 
 
@@ -1988,14 +2057,14 @@ int main(int argc, char* argv[])
 			DrawSphere({ 0,10,0 }, .2f, GREEN);
 			DrawSphere({ 0,0,10 }, .2f, BLUE);
 
-			//Tests();
+			Tests();
 
-			//// Mise à jour de l'état de la balle, pour appliquer les modifications
-			//// entre la frame précédente et la frame actuelle
-			UpdateBall(ball, obstacles, deltaTime);			// en mode debug, passer 0.016667
+			// Mise à jour de l'état de la balle, pour appliquer les modifications
+			// entre la frame précédente et la frame actuelle
+			//UpdateBall(ball, obstacles, deltaTime);			// en mode debug, passer 0.016667 à la place de deltatime
 
-			//// Puis on dessine le resultat
-			DrawScene(ball.sphere, obstacles);
+			// Puis on dessine le resultat
+			//DrawScene(ball.sphere, obstacles);
 
 			
 			//std::cout << ball.rotVect.x << "\n";
