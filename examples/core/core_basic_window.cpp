@@ -1154,7 +1154,7 @@ bool IntersectSegmentSphere(Segment seg, Sphere sph, float& t, Vector3& interPt,
 
 	interPt = Vector3Add(seg.pt1, Vector3Scale(vecteurAB, t));
 
-	interNormal = Vector3Subtract(sph.ref.origin, interPt);
+	interNormal = Vector3Normalize(Vector3Subtract(interPt, sph.ref.origin));
 
 	return true;
 }
