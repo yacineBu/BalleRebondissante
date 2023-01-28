@@ -71,8 +71,7 @@ struct Triangle {
 
 struct Plane {
 	Vector3 normal;
-	float d;		// d est la distance entre le point "au centre du plan" et l'origine du monde, sur l'axe du vecteur normal
-	// je sais que plus il est grand, plus il est "éloigné" de l'origine.
+	float d;
 };
 
 struct ReferenceFrame {
@@ -114,7 +113,7 @@ struct ReferenceFrame {
 
 struct Quad {
 	ReferenceFrame ref;
-	Vector3 extents;		// extents.y n’est pas utilisé
+	Vector3 extents;		// Attention, extents.y n’est pas utilisé
 };
 
 struct Disk {
@@ -148,6 +147,9 @@ struct BouncingSphere {
 	float mass;
 	Vector3 angularMomentum;
 	float momentOfInertia;
+
+	BouncingSphere() {
+	}
 
 	BouncingSphere(Sphere sphere, Vector3 translVect, Vector3 rotVect, float mass) {
 		this->sphere = sphere;
@@ -281,24 +283,14 @@ void MyDrawPolygonQuad(Quad quad, Color color = LIGHTGRAY)
 
 	rlPushMatrix();
 
-	// BEGINNING OF SPACE TRANSFORMATION INDUCED BY THE LOCAL REFERENCE FRAME (on touche au référentiel)
-	// methods should be called in this order: rlTranslatef, rlRotatef & rlScalef
-	// so that transformations occur in the opposite order: scale, then rotation, then translation
-
-	//TRANSLATION
 	rlTranslatef(quad.ref.origin.x, quad.ref.origin.y, quad.ref.origin.z);
-
-	//ROTATION
 	Vector3 vect;
 	float angle;
 	QuaternionToAxisAngle(quad.ref.q, &vect, &angle);
 	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
-
-	//SCALING
 	rlScalef(quad.extents.x, 1, quad.extents.z);
-	// END OF SPACE TRANSFORMATION INDUCED BY THE LOCAL REFERENCE FRAME
 
-	rlBegin(RL_TRIANGLES);		// 1 triangle = 3 points. Tout les 3 appels à rlVertex3f(), un triangle se dessine.
+	rlBegin(RL_TRIANGLES);
 	rlColor4ub(color.r, color.g, color.b, color.a);
 	rlVertex3f(1, 0, 1);
 	rlVertex3f(1, 0, -1);
@@ -308,7 +300,6 @@ void MyDrawPolygonQuad(Quad quad, Color color = LIGHTGRAY)
 	rlVertex3f(-1, 0, 1);
 	rlEnd();
 
-	//EVERY rlPushMatrix method call should be followed by a rlPopMatrix method call
 	rlPopMatrix();
 }
 
@@ -326,7 +317,7 @@ void MyDrawWireframeQuad(Quad quad, Color color = DARKGRAY)
 	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
 	rlScalef(quad.extents.x, 1, quad.extents.z);
 
-	rlBegin(RL_LINES);		// 1 droite = 2 points. Tout les 2 appels à rlVertex3f(), une droite se dessine.
+	rlBegin(RL_LINES);
 	rlColor4ub(color.a, color.g, color.b, color.a);
 	rlVertex3f(1, 0, 1);
 	rlVertex3f(1, 0, -1);
@@ -350,7 +341,6 @@ void MyDrawQuad(Quad quad, bool drawPolygon = true, bool drawWireframe = true,
 	if (drawWireframe) MyDrawWireframeQuad(quad, wireframeColor);
 }
 
-// BOX
 void MyDrawPolygonBox(Box box, Color color = LIGHTGRAY) {
 
 	rlPushMatrix();
@@ -421,7 +411,7 @@ void MyDrawBox(Box box, bool drawPolygon = true, bool drawWireframe = true,
 
 /// <summary>
 /// Créer le tableau qui contient les points du disque. Le nombre de points est en fonction de nSectors.
-/// On fait ca en utilisant le système de coordonnées cylindrique (ca facilite les choses, seulement la coordonnée teta est à modifier).
+/// On fait ca en utilisant le système de coordonnées cylindrique (ca facilite les choses, seul la coordonné teta est à modifier).
 /// Méthode utilisée par les méthodes de dessin du disque et du cylindre.
 /// </summary>
 /// <param name="nSectors">Le nombre de secteurs voulu être dessinés pour un disque ou un cylindre</param>
@@ -437,30 +427,27 @@ std::vector<Cylindrical> computeDiskPoints(int nSectors) {
 	return diskPointsAtPerim;
 }
 
-// DISQUE
 void MyDrawPolygonDisk(Disk disk, int nSectors, Color color = LIGHTGRAY) {
-	// Minimum 3 secteur de disque pour pouvoir tracer le disque
+	// Minimum 3 secteurs de disque pour pouvoir tracer le disque
 	if (nSectors < 3) {
 		return;
 	}
 
-	int numVertex = nSectors * 3;		// nbr total d'appel à rlVertx3f : 3 appels par secteur pour dessiner un triangle
+	int numVertex = nSectors * 3;
 	if (rlCheckBufferLimit(numVertex)) rlglDraw();
 
 	rlPushMatrix();
 
-	// On touche au référentiel. On met à la bonne place le "crayon" pour qu'il puisse dessiner le disk tel que celui décrit dans l'objet "disk" reçu en paramètre
 	rlTranslatef(disk.ref.origin.x, disk.ref.origin.y, disk.ref.origin.z);
 	Vector3 vect;
 	float angle;
 	QuaternionToAxisAngle(disk.ref.q, &vect, &angle);
-	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);			// rotation du "crayon" en mode quaterninon, bon ici on applique la rotation à partir d'un axe/vecteur (vect.x, vect.y, vect.z) et d'un angle, pour simplifier les choses
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);	
 	rlScalef(disk.radius, 1, disk.radius);
 
 	std::vector<Cylindrical> diskPointsAtPerim = computeDiskPoints(nSectors);
 
-	// Enfin, on dessine le disque, en utilisant les méthodes de conversion pour repasser au sys cartésien
-	rlBegin(RL_TRIANGLES);			// 1 triangle = 3 points. Tout les 3 appels à rlVertex3f(), un triangle se dessine.
+	rlBegin(RL_TRIANGLES);
 	rlColor4ub(color.r, color.g, color.b, color.a);
 	Vector3 carPt, carPt2;
 	for (int i = 0; i < diskPointsAtPerim.size() - 1; i++) {
@@ -480,7 +467,7 @@ void MyDrawWireframeDisk(Disk disk, int nSectors, Color color = DARKGRAY) {
 		return;
 	}
 
-	int numVertex = nSectors * 4;		// nbr total d'appel à rlVertx3f : 4 appels par secteur pour dessiner les côtés des triangles
+	int numVertex = nSectors * 4;
 	if (rlCheckBufferLimit(numVertex)) rlglDraw();
 
 	rlPushMatrix();
@@ -527,7 +514,7 @@ void MyDrawPolygonCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
 		return;
 	}
 
-	// Uniquement pour le cylindre, les points du disk sont déjà gérés par la méthode de dessin du disk
+	// numVertex uniquement pour le cylindre, les points du disk sont déjà gérés par la méthode de dessin du disk
 	int numVertex = nSectors * 6;
 	if (rlCheckBufferLimit(numVertex)) rlglDraw();
 
@@ -575,6 +562,7 @@ void MyDrawWireframeCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
 		return;
 	}
 
+	// numVertex uniquement pour le cylindre, les points du disk sont déjà gérés par la méthode de dessin du disk
 	int numVertex = nSectors * 10;
 	if (rlCheckBufferLimit(numVertex)) rlglDraw();
 
@@ -626,6 +614,14 @@ void MyDrawCylinder(Cylinder cylinder, int nSectors, bool drawCaps = false, bool
 	if (drawWireframe) MyDrawWireframeCylinder(cylinder, nSectors, drawCaps, wireframeColor);
 }
 
+/// <summary>
+/// blabla
+/// L'algo commence par dessiner le haut de la sphère et termine par le bas, en prennant soin d'effectuer un tour complet sur chaque parallèle
+/// </summary>
+/// <param name="sphere"></param>
+/// <param name="nMeridians"></param>
+/// <param name="nParallels"></param>
+/// <param name="color"></param>
 void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	color = LIGHTGRAY) {
 	if (nMeridians < 2 || nParallels < 1)
@@ -647,14 +643,7 @@ void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	float phiPitch = PI / (nParallels + 1);			// permet pendant le dessin de passer d'un parallèle à un autre
 	Vector3 top = SphericalToCartesian({ 1, 0, 0 });
 	Vector3 bottom = SphericalToCartesian({ 1, 0, PI });
-	
-	// Pour le dessin, j'ai le choix entre 
-	//	- pré-calculer les points de la sphère, les stocker dans un tableau, puis dessiner la sphère en utilisant ce tableau
-	//	- tout faire en live : pendant le dessin calculer les points
-	// Les 2 reviennent au même normalement.
-	// J'avais pris la 1ère option pour dessiner un disk. Ici, je prends l'option 2
 
-	// L'algo commence par dessiner le haut de la sphère et termine par le bas, en prennant soin d'effectuer un tour complet sur chaque parallèle
 	rlBegin(RL_TRIANGLES);			
 	rlColor4ub(color.r, color.g, color.b, color.a);
 
@@ -668,7 +657,7 @@ void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	rlVertex3f(carPt.x, carPt.y, carPt.z);
 	sphPt = { 1, thetaPitch, phiPitch };
 	carPt = SphericalToCartesian(sphPt);
-	carPt_save = { carPt.x, carPt.y, carPt.z };				// Le 2ème point du prochain triangle sera le même, on le sauvegarde au lieu de le recalculer
+	carPt_save = { carPt.x, carPt.y, carPt.z };			// Le 2ème point du prochain triangle sera le même, on le sauvegarde au lieu de le recalculer
 	rlVertex3f(carPt.x, carPt.y, carPt.z);
 	for (int i = 1 ; i < nMeridians*2 ; i++) {
 		rlVertex3f(top.x, top.y, top.z);
@@ -689,7 +678,7 @@ void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 
 			sphPt = { 1, thetaPitch * j, phiPitch * (i + 1) };
 			carPt = SphericalToCartesian(sphPt);
-			carPt_save = { carPt.x, carPt.y, carPt.z };						// Le 6ème point sera le même, on le sauvegarde au lieu de le recalculer
+			carPt_save = { carPt.x, carPt.y, carPt.z };			// Le 6ème point sera le même, on le sauvegarde au lieu de le recalculer
 			rlVertex3f(carPt.x, carPt.y, carPt.z);
 
 			sphPt = { 1, thetaPitch * (j + 1), phiPitch * i };
@@ -717,7 +706,7 @@ void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	rlVertex3f(bottom.x, bottom.y, bottom.z);
 	sphPt = { 1, thetaPitch, PI - phiPitch };
 	carPt = SphericalToCartesian(sphPt);
-	carPt_save = { carPt.x, carPt.y, carPt.z };				// Le 1ème point du prochain triangle sera le même, on le sauvegarde au lieu de le recalculer
+	carPt_save = { carPt.x, carPt.y, carPt.z };			// Le 1ème point du prochain triangle sera le même, on le sauvegarde au lieu de le recalculer
 	rlVertex3f(carPt.x, carPt.y, carPt.z);
 	for (int i = 1; i < nMeridians * 2; i++) {
 		rlVertex3f(carPt_save.x, carPt_save.y, carPt_save.z);
@@ -1001,13 +990,11 @@ void MyDrawRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels, bool
 bool IntersectLinePlane(Line line, Plane plane, float& t, Vector3& interPt, Vector3&
 	interNormal)
 {
-	// no intersection if line is parallel to the plane
 	float dotProd = Vector3DotProduct(plane.normal, line.dir);
 	if (fabsf(dotProd) < EPSILON) return false;
 	
-	// intersection: t, interPt & interNormal
 	t = (plane.d - Vector3DotProduct(plane.normal, line.pt)) / dotProd;
-	interPt = Vector3Add(line.pt, Vector3Scale(line.dir, t)); // OM = OA+tAB
+	interPt = Vector3Add(line.pt, Vector3Scale(line.dir, t));
 	interNormal = Vector3Scale(plane.normal,
 		Vector3DotProduct(Vector3Subtract(line.pt, interPt), plane.normal) < 0 ? -1.f : 1.f);
 	return true;
@@ -1021,7 +1008,6 @@ bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
 	if (fabsf(dotProd) < EPSILON) return false;
 
 	t = (plane.d - Vector3DotProduct(plane.normal, seg.pt1)) / dotProd;
-	//std::cout << "t=" << t << "\n";
 	if (t < 0 || t > 1) return false;
 	interPt = Vector3Add(seg.pt1, Vector3Scale(dir, t));
 	interNormal = Vector3Scale(plane.normal,
@@ -1078,11 +1064,13 @@ bool IntersectSegmentBox(Segment seg, Box box, float& t, Vector3& interPt,
 	Vector3 extentsForQuadsOnX = { box.extents.y, 0, box.extents.z };
 	originForNextQuad = Vector3Add(box.ref.origin, Vector3Scale(box.ref.i, box.extents.x));
 	distanceQuadPt1ForNextQuad = Vector3Distance(seg.pt1, originForNextQuad);
+	// La face normale à l'axe X, situé dans la partie positive de l'axe
 	Quad sideNormalToXPositive = { {originForNextQuad, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({0, 0, 1}, -piOn2))}, extentsForQuadsOnX };
 	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToXPositive));
 
 	originForNextQuad = Vector3Subtract(box.ref.origin, Vector3Scale(box.ref.i, box.extents.x));
 	distanceQuadPt1ForNextQuad = Vector3Distance(seg.pt1, originForNextQuad);
+	// La face normale à l'axe X, situé dans la partie négative de l'axe, et ainsi de suite...
 	Quad sideNormalToXNegative = { {originForNextQuad, QuaternionMultiply(box.ref.q, QuaternionFromAxisAngle({0, 0, 1}, piOn2))}, extentsForQuadsOnX };
 	boxQuads.insert(std::pair<float, Quad>(distanceQuadPt1ForNextQuad, sideNormalToXNegative));
 
@@ -1119,15 +1107,6 @@ bool IntersectSegmentBox(Segment seg, Box box, float& t, Vector3& interPt,
 	return false;
 }
 
-/// <summary>
-/// 
-/// </summary>
-/// <param name="seg"></param>
-/// <param name="sph"></param>
-/// <param name="t"></param>
-/// <param name="interPt"></param>
-/// <param name="interNormal"></param>
-/// <returns></returns>
 bool IntersectSegmentSphere(Segment seg, Sphere sph, float& t, Vector3& interPt, Vector3& interNormal) {
 
 	Vector3 vecteurAB = Vector3Subtract(seg.pt2, seg.pt1); // vecteur AB
@@ -1148,8 +1127,6 @@ bool IntersectSegmentSphere(Segment seg, Sphere sph, float& t, Vector3& interPt,
 
 	t = (-b - sqrtf(delta)) / (2 * a);
 
-	//std::cout << "t=" << t << "\n";
-
 	if (t < 0 || t > 1) return false;
 
 	interPt = Vector3Add(seg.pt1, Vector3Scale(vecteurAB, t));
@@ -1158,91 +1135,6 @@ bool IntersectSegmentSphere(Segment seg, Sphere sph, float& t, Vector3& interPt,
 
 	return true;
 }
-
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//bool IntersectSegmentSphere(Segment seg, Sphere sphere, float& t, Vector3& interPt, Vector3& interNormal) {
-//	Vector3 AB = Vector3Subtract(seg.pt2, seg.pt1);
-//	Vector3 OmegaA = Vector3Subtract(seg.pt1, sphere.ref.origin);
-//
-//	float a = Vector3DotProduct(AB, AB);
-//	float b = 2 * Vector3DotProduct(AB, OmegaA);
-//	float c = Vector3DotProduct(OmegaA, OmegaA) - powf(sphere.radius, 2);
-//
-//	float discrimin = b * b - 4 * a * c; // Delta = b²-4ac
-//	if (discrimin < 0)
-//		// Pas de racine réelle
-//		return false;
-//
-//	t = 0.0f;
-//
-//	if (discrimin < EPSILON) {
-//		// Delta == 0 : Une racine double -b/2a
-//		t = -(b / (2 * a));
-//		interPt = Vector3Add(seg.pt1, Vector3Scale(AB, t));
-//	}
-//	else {
-//		// Delta > 0 : deux racines réelles
-//		discrimin = sqrtf(discrimin);
-//		float t1 = (-b + discrimin) / (2 * a);
-//		float t2 = (-b - discrimin) / (2 * a);
-//		t = t1 < t2 ? t1 : t2;
-//
-//		interPt = Vector3Add(seg.pt1, Vector3Scale(AB, t));
-//		//interPt = Vector3Scale(seg.pt1, t);
-//
-//		interNormal = Vector3Normalize(Vector3Subtract(interPt, sphere.ref.origin));
-//	}
-//
-//	if (t >= 0 && t <= 1)
-//		return true;
-//	return false;
-//}
-
-//bool IntersectSegmentSphere(Segment seg, Sphere s, float& t, Vector3& interPt, Vector3& interNormal) {
-//
-//	double a, b, c, t1, t2;
-//	double bb4ac;
-//	Vector3 AB = Vector3Normalize(Vector3Subtract(seg.pt2, seg.pt1));
-//	Vector3 AS = Vector3Subtract(seg.pt1, s.ref.origin);
-//
-//	a = Vector3DotProduct(AB, AB);
-//	b = 2 * Vector3DotProduct(AB, AS);
-//	c = Vector3DotProduct(s.ref.origin, s.ref.origin) + Vector3DotProduct(seg.pt1, seg.pt1) - 2 * Vector3DotProduct(s.ref.origin, seg.pt1) - s.radius * s.radius;
-//	bb4ac = b * b - 4 * a * c;
-//
-//	if (abs(a) < EPSILON || bb4ac < 0) {
-//		t1 = 0;
-//		t2 = 0;
-//		return false;
-//	}
-//
-//	t1 = (-b + sqrt(bb4ac)) / (2 * a);
-//	t2 = (-b - sqrt(bb4ac)) / (2 * a);
-//
-//	t = t2;
-//
-//	interPt = Vector3Add(seg.pt1, Vector3Scale(AB, t2));
-//	interNormal = Vector3Normalize(Vector3Subtract(interPt, s.ref.origin));
-//
-//	return Vector3Distance(interPt, seg.pt1) <= Vector3Distance(seg.pt1, seg.pt2);
-//}
-
-// todo : rendre fonctionnel l'argument t
-// ptet aussi que y'a moyen de la faire fonctionner avec plane
-/*
-bool IntersectSegmentDisk(Segment seg, Disk disk, float& t, Vector3& interPt, Vector3& interNormal) {
-	float distanceDiskOrigin = Vector3Distance({ 0,0,0 }, disk.ref.origin);
-	Plane planeOfDisk = { disk.ref.j, distanceDiskOrigin };
-
-	if (IntersectSegmentQuad(seg, quadOnDisk, interPt, interNormal)) {
-		if (Vector3Distance(plane.position, interPt) <= disk.radius * .5f) {
-			return true;
-		}
-	}
-
-	return false;
-}
-*/
 
 bool IntersectSegmentInfiniteCylinder(Segment seg, Cylinder cyl, float& t, Vector3& interPt, Vector3& interNormal) {
 	Vector3 ptP = Vector3Subtract(cyl.ref.origin, LocalToGlobalVect({ 0, 1, 0 }, cyl.ref));
@@ -1254,7 +1146,7 @@ bool IntersectSegmentInfiniteCylinder(Segment seg, Cylinder cyl, float& t, Vecto
 	Vector3 PQ = Vector3Subtract(ptQ, ptP);
 	Vector3 PA = Vector3Subtract(ptA, ptP);
 
-	// calcul des produits utiles
+	// Calcul des produits utiles
 	float ABdotProdPQ = Vector3DotProduct(vectAB, PQ);
 	float PAdotProdPQ = Vector3DotProduct(PA, PQ);
 	float PQsqrt = Vector3DotProduct(PQ, PQ);
@@ -1326,11 +1218,11 @@ bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& inte
 bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& interPt, Vector3& interNormal) {
 
 	// OBB
-	ReferenceFrame refObb = ReferenceFrame(capsule.ref.origin, capsule.ref.q);
-	Vector3 extentsObb = {capsule.radius, capsule.halfHeight + capsule.radius, capsule.radius};
-	Box obb = { refObb, extentsObb};
-	if (!IntersectSegmentBox(seg, obb, t, interPt, interNormal))
-		return false;
+	//ReferenceFrame refObb = ReferenceFrame(capsule.ref.origin, capsule.ref.q);
+	//Vector3 extentsObb = {capsule.radius, capsule.halfHeight + capsule.radius, capsule.radius};
+	//Box obb = { refObb, extentsObb};
+	//if (!IntersectSegmentBox(seg, obb, t, interPt, interNormal))
+	//	return false;
 
 	Vector3 up = LocalToGlobalPos({ 0, capsule.halfHeight, 0 }, capsule.ref);
 	Vector3 down = LocalToGlobalPos({ 0, - capsule.halfHeight, 0 }, capsule.ref);
@@ -1344,7 +1236,7 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 	Vector3 interNormalCurrent;
 	float tmpT;
 
-	// Un autre système plus léger pour définir le premier point d'intersection rencontré par le segment.
+	// Système pour définir le premier point d'intersection rencontré par le segment :
 	// Pour une intersection trouvée, on vérifie si la distance entre le pt1 du segment et le point
 	// d'intersection trouvé est inférieure à celle avec le dernier point d'intersection déterminé (interPt).
 	// On initialise interPt avec FLT_MAX, de manière à ce qu'il soit le plus éloigné possible
@@ -1387,8 +1279,6 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 /// <returns>True si l'intersection existe, False sinon</returns>
 bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 	Vector3& interPt, Vector3& interNormal) {
-	// Pour corriger le problème de savoir quels primitive le segment intersecte en premier, je pourrais tester l'intersection
-	// avec toutes les primitives, puis à la fin retourner le pt avec le plus petit t.
 
 	// OBB
 	//ReferenceFrame refObb = ReferenceFrame(rndBox.ref.origin, rndBox.ref.q);
@@ -1425,12 +1315,14 @@ bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 	Vector3 extentsForQuadsOnX = { rndBox.extents.y, 0, rndBox.extents.z };
 	originForNextPrimitive = Vector3Add(rndBox.ref.origin, vectExtentXWithRadius);
 	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	// La face normale à l'axe X, situé dans la partie positive de l'axe
 	Quad sideNormalToXPositive = { {originForNextPrimitive, QuaternionMultiply(rndBox.ref.q, QuaternionFromAxisAngle({0, 0, 1}, -piOn2))}, extentsForQuadsOnX };
 	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToXPositive, 0);
 	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
 
 	originForNextPrimitive = Vector3Subtract(rndBox.ref.origin, vectExtentXWithRadius);
 	distancePrimPt1ForNextPrim = Vector3Distance(seg.pt1, originForNextPrimitive);
+	// La face normale à l'axe X, situé dans la partie négative de l'axe, et ainsi de suite...
 	Quad sideNormalToXNegative = { {originForNextPrimitive, QuaternionMultiply(rndBox.ref.q, QuaternionFromAxisAngle({0, 0, 1}, piOn2))}, extentsForQuadsOnX };
 	pairVoidIntForNextPrim = std::pair<void*, int>(&sideNormalToXNegative, 0);
 	rbPrimitives.insert(std::pair<float, std::pair<void*, int>>(distancePrimPt1ForNextPrim, pairVoidIntForNextPrim));
@@ -1594,10 +1486,13 @@ void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
 	Vector2 mouseVect;
 	static Vector2 prevMousePos = { 0,0 };
 
-	// Gestion de la souris 
-	mousePos = GetMousePosition(); // 1) récupération de la position de la souris
-	mouseVect = Vector2Subtract(mousePos, prevMousePos); // 2) calcul du vecteur de déplacement de la souris entre la position courante de la souris et la précédente
-	prevMousePos = mousePos; // 3) mise à jour de la position précédente de la souris avec la position courante
+	// Gestion de la souris :
+	// 1) récupération de la position de la souris
+	mousePos = GetMousePosition();
+	// 2) calcul du vecteur de déplacement de la souris entre la position courante de la souris et la précédente
+	mouseVect = Vector2Subtract(mousePos, prevMousePos);
+	// 3) mise à jour de la position précédente de la souris avec la position courante
+	prevMousePos = mousePos; 
 
 	// 4) calcul du vecteur de déplacement de la caméra en coordonnées sphériques
 	sphDelta = CartesianToSpherical(camera->position);
@@ -1649,8 +1544,8 @@ bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 	Vector3& newPosition,
 	Vector3& newVelocity) {
 
-	// Cet Rounded Box, qui est la somme de Minkowski entre la sphère et la rounded box obstacle, est utilisée
-	// pour déterminer si la sphère entre en collision avec la rounded box obtacle.
+	// Cette Rounded Box, qui est la somme de Minkowski entre la sphère et la rounded box obstacle, est utilisée
+	// pour déterminer si la sphère entre en collision avec la rounded box obstacle.
 	RoundedBox minkowskiSum = { rndBox.ref, rndBox.extents, rndBox.radius + sphere.radius };
 	//MyDrawWireframeRoundedBox(minkowskiSum, 10, 10);
 
@@ -1726,8 +1621,8 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 	Vector3 newPosition;
 	Vector3 newVelocity;
 	
-	//Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
-	//ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
+	Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
+	ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
 	
 	// pour l'instant je pars du principe qu'il n'y qu'une seule collision possible
 	for each (RoundedBox obstacle in obstacles) {
@@ -1749,55 +1644,65 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 #pragma endregion
 
 /// <summary>
-/// Construit les différentes obstacles, des Rounded Box, avec lesquels la balle entrera en collision
+/// Construit la scène avec la balle ainsi que les différentes obstacles, des Rounded Box, avec lesquels la balle entrera en collision
+/// <param name="ball"></param>
+/// <param name="obs"></param>
 /// </summary>
-/// <returns>Liste des obstacles</returns>
-std::vector<RoundedBox> BuildSceneObs() {
+void BuildScene(BouncingSphere& ball, std::vector<RoundedBox>& obs) {
+	// BALL
+	ReferenceFrame ballRef = ReferenceFrame(
+		{ 13, 15, 15 },
+		QuaternionIdentity()
+	);
+	float speed = 10;		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
+	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
+	Vector3 rotVectInit = Vector3Zero();
+	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
+	ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
+
 	// METTRE 0 SUR EXTENT Y PTET CA AIDERAIT A FLUIDIFIER
-	std::vector<RoundedBox> obs;
-
 	// Le sol et les 4 murs
-	//ReferenceFrame groundRef = ReferenceFrame(
-	//	{ 0, 0, 0 },
-	//	QuaternionIdentity()
-	//);
-	//RoundedBox ground = { groundRef, {20,1,20}, 0 };
-	//obs.push_back(ground);
+	ReferenceFrame groundRef = ReferenceFrame(
+		{ 0, 0, 0 },
+		QuaternionIdentity()
+	);
+	RoundedBox ground = { groundRef, {20,1,20}, 0 };
+	obs.push_back(ground);
 
-	//ReferenceFrame topRef = ReferenceFrame(
-	//	{ 0, 10, 0 },
-	//	QuaternionIdentity()
-	//);
-	//RoundedBox top = { topRef, {20,1,20}, 0 };
-	//obs.push_back(top);
+	ReferenceFrame topRef = ReferenceFrame(
+		{ 0, 10, 0 },
+		QuaternionIdentity()
+	);
+	RoundedBox top = { topRef, {20,1,20}, 0 };
+	obs.push_back(top);
 
-	//ReferenceFrame wallNormalXPositiveRef = ReferenceFrame(
-	//	{ 20, 5, 0 },
-	//	QuaternionFromAxisAngle({0, 0, 1}, PI / 2)
-	//);
-	//RoundedBox wallNormalXPositive = { wallNormalXPositiveRef, {5,1,20}, 0 };
-	//obs.push_back(wallNormalXPositive);
+	ReferenceFrame wallNormalXPositiveRef = ReferenceFrame(
+		{ 20, 5, 0 },
+		QuaternionFromAxisAngle({0, 0, 1}, PI / 2)
+	);
+	RoundedBox wallNormalXPositive = { wallNormalXPositiveRef, {5,1,20}, 0 };
+	obs.push_back(wallNormalXPositive);
 
-	//ReferenceFrame wallNormalZPositiveRef = ReferenceFrame(
-	//	{ 0, 5, 20 },
-	//	QuaternionFromAxisAngle({ 1, 0, 0 }, PI / 2)
-	//);
-	//RoundedBox wallNormalZPositive = { wallNormalZPositiveRef, {20,1,5}, 0 };
-	//obs.push_back(wallNormalZPositive);
+	ReferenceFrame wallNormalZPositiveRef = ReferenceFrame(
+		{ 0, 5, 20 },
+		QuaternionFromAxisAngle({ 1, 0, 0 }, PI / 2)
+	);
+	RoundedBox wallNormalZPositive = { wallNormalZPositiveRef, {20,1,5}, 0 };
+	obs.push_back(wallNormalZPositive);
 
-	//ReferenceFrame wallNormalXNegativeRef = ReferenceFrame(
-	//	{ -20, 5, 0 },
-	//	QuaternionFromAxisAngle({ 0, 0, 1 }, PI / 2)
-	//);
-	//RoundedBox wallNormalXNegative = { wallNormalXNegativeRef, {5,1,20}, 0 };
-	//obs.push_back(wallNormalXNegative);
+	ReferenceFrame wallNormalXNegativeRef = ReferenceFrame(
+		{ -20, 5, 0 },
+		QuaternionFromAxisAngle({ 0, 0, 1 }, PI / 2)
+	);
+	RoundedBox wallNormalXNegative = { wallNormalXNegativeRef, {5,1,20}, 0 };
+	obs.push_back(wallNormalXNegative);
 
-	//ReferenceFrame wallNormalZNegativeRef = ReferenceFrame(
-	//	{ 0, 5, -20 },
-	//	QuaternionFromAxisAngle({ 1, 0, 0 }, PI / 2)
-	//);
-	//RoundedBox wallNormalZNegative = { wallNormalZNegativeRef, {20,1,5}, 0 };
-	//obs.push_back(wallNormalZNegative);
+	ReferenceFrame wallNormalZNegativeRef = ReferenceFrame(
+		{ 0, 5, -20 },
+		QuaternionFromAxisAngle({ 1, 0, 0 }, PI / 2)
+	);
+	RoundedBox wallNormalZNegative = { wallNormalZNegativeRef, {20,1,5}, 0 };
+	obs.push_back(wallNormalZNegative);
 
 
 	// Les obstacles
@@ -1828,20 +1733,20 @@ std::vector<RoundedBox> BuildSceneObs() {
 	//);
 	//RoundedBox obs4 = { obs4Ref, {1,2,1}, 0.5 };
 	//obs.push_back(obs4);
-
-	return obs;
 }
 
 void DrawScene(Sphere ball, std::vector<RoundedBox> obstacles) {
 	MyDrawSphere(ball, 4, 4, true, true, RED);
 	for each (RoundedBox obstacle in obstacles) {
-		MyDrawRoundedBox(obstacle, 10, 10, true, true/*, { 0, 0, 0, 0 }*/);
+		MyDrawRoundedBox(obstacle, 10, 10, true, true, { 0, 0, 0, 0 });
 	}
 }
 
+#pragma region Tests
 /// <summary>
 /// Méthode appelée dans le main pour tester les fonctionnalités développées.
 /// </summary>
+/// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! modifier le nom
 void Tests() {
 	float time = (float)GetTime();
 
@@ -2064,8 +1969,13 @@ void Tests() {
 	//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 	//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 	//}
+}
 
-	// TEST BOUNCING PARTIE SPHERE
+/// <summary>
+/// Méthode appelée dans le main pour tester le rebond avec les configuations souhaitées.
+/// </summary>
+void BuildSceneTest(BouncingSphere& ball, std::vector<RoundedBox>& obs) {
+	// TEST BOUNCING BALL ROUNDED BOX PARTIE SHPERE
 	ReferenceFrame ballRef = ReferenceFrame(
 		{ 13, 15, 15 },
 		QuaternionIdentity()
@@ -2074,21 +1984,17 @@ void Tests() {
 	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
 	float mass = 2;
-	BouncingSphere ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
-	
-	std::vector<RoundedBox> obs;
+	ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
+
 	ReferenceFrame obs1Ref = ReferenceFrame(
 		{ 0, 0, 0 },
 		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
 	);
 	RoundedBox obs1 = { obs1Ref, {1,2,1}, 4 };
 	obs.push_back(obs1);
-
-	UpdateBall(ball, obs, GetFrameTime());
-	DrawScene(ball.sphere, obs);
-
-
 }
+
+#pragma endregion
 
 
 int main(int argc, char* argv[])
@@ -2111,42 +2017,24 @@ int main(int argc, char* argv[])
 	camera.type = CAMERA_PERSPECTIVE;
 	SetCameraMode(camera, CAMERA_CUSTOM);  // Set an orbital camera mode
 
-	// BALL
-	// temp !!!!!!!!!!!!!!!!!!!!!!
-	// pour tester collision avec sphère : 
-	//{ 13, 15, 15 },
-	//Vector3Scale({ -1, -0.9, -1 }, 10);
-	ReferenceFrame ballRef = ReferenceFrame(
-		{ 13, 15, 15 },
-		QuaternionIdentity()
-	);
-	float speed = 10;		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
-	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
-	Vector3 rotVectInit = Vector3Zero();
-	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
-	BouncingSphere ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
-
-	// OBSTACLES
-	std::vector<RoundedBox> obstacles = BuildSceneObs();
-
+	BouncingSphere ball;
+	std::vector<RoundedBox> obstacles;
+	BuildScene(ball, obstacles);
+	//BuildSceneTest(ball, obstacles);
 
 
 	//--------------------------------------------------------------------------------------
 
-	// Main game loop
-	while (!WindowShouldClose())    // Detect window close button or ESC key
+	// Game loop
+	while (!WindowShouldClose())
 	{
-		// Update
-		//----------------------------------------------------------------------------------
-		// TODO: Update your variables here
-		//----------------------------------------------------------------------------------
 
 		float deltaTime = GetFrameTime();		// Indique le temps en seconde écoulé entre la frame précédente et la frame actuelle
 		float time = (float)GetTime();
 
 		MyUpdateOrbitalCamera(&camera, deltaTime);
 
-		// Draw
+		// Partie dessin
 		//----------------------------------------------------------------------------------
 		BeginDrawing();
 
@@ -2154,7 +2042,7 @@ int main(int argc, char* argv[])
 
 		BeginMode3D(camera);
 		{			
-			//3D REFERENTIAL
+			// Referentiel 3D 
 			DrawGrid(20, 1.0f);
 			DrawLine3D({ 0 }, { 0,10,0 }, DARKGRAY);
 			DrawSphere({ 10,0,0 }, .2f, RED);
@@ -2163,12 +2051,12 @@ int main(int argc, char* argv[])
 
 			Tests();
 
-			//// Mise à jour de l'état de la balle, pour appliquer les modifications
-			//// entre la frame précédente et la frame actuelle
-			//UpdateBall(ball, obstacles, deltaTime);			// en mode debug, passer 0.016667 à la place de deltatime
+			// Mise à jour de l'état de la balle, pour appliquer les modifications
+			// entre la frame précédente et la frame actuelle
+			UpdateBall(ball, obstacles, deltaTime);			// en mode debug, passer 0.016667 à la place de deltatime
 
-			//// Puis on dessine le resultat
-			//DrawScene(ball.sphere, obstacles);
+			// Puis on dessine le resultat
+			DrawScene(ball.sphere, obstacles);
 
 			
 			//std::cout << ball.rotVect.x << "\n";
@@ -2191,7 +2079,7 @@ int main(int argc, char* argv[])
 
 	// De-Initialization
 	//--------------------------------------------------------------------------------------   
-	CloseWindow();        // Close window and OpenGL context
+	CloseWindow();
 	//--------------------------------------------------------------------------------------
 
 	return 0;
