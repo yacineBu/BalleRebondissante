@@ -1719,17 +1719,17 @@ Quaternion computeNewOrient(BouncingSphere ball, float deltaTime) {
 	return QuaternionMultiply(ball.sphere.ref.q, QuaternionFromAxisAngle(Vector3Normalize(ball.rotVect), Vector3Length(ball.rotVect) * deltaTime));
 }
 
-
-
 void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float deltaTime) {
 	float colT;
 	Vector3 colSpherePos;
 	Vector3 colNormal;
 	Vector3 newPosition;
 	Vector3 newVelocity;
-	// todo :
-	// modif translVecteur pour appliquer la gravité
 	
+	//Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
+	//ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
+	
+	// pour l'instant je pars du principe qu'il n'y qu'une seule collision possible
 	for each (RoundedBox obstacle in obstacles) {
 		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)) {
 			std::cout << "inter\n";
@@ -1745,14 +1745,99 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 	ball.sphere.ref.origin = computeNewPosition(ball, deltaTime);
 }
 
-void DrawScene(Sphere ball, std::vector<RoundedBox> obstacles) {
-	MyDrawSphere(ball, 4, 4);
-	for each (RoundedBox obstacle in obstacles) {
-		MyDrawRoundedBox(obstacle, 10, 10);
-	}
-}
 
 #pragma endregion
+
+/// <summary>
+/// Construit les différentes obstacles, des Rounded Box, avec lesquels la balle entrera en collision
+/// </summary>
+/// <returns>Liste des obstacles</returns>
+std::vector<RoundedBox> BuildSceneObs() {
+	// METTRE 0 SUR EXTENT Y PTET CA AIDERAIT A FLUIDIFIER
+	std::vector<RoundedBox> obs;
+
+	// Le sol et les 4 murs
+	//ReferenceFrame groundRef = ReferenceFrame(
+	//	{ 0, 0, 0 },
+	//	QuaternionIdentity()
+	//);
+	//RoundedBox ground = { groundRef, {20,1,20}, 0 };
+	//obs.push_back(ground);
+
+	//ReferenceFrame topRef = ReferenceFrame(
+	//	{ 0, 10, 0 },
+	//	QuaternionIdentity()
+	//);
+	//RoundedBox top = { topRef, {20,1,20}, 0 };
+	//obs.push_back(top);
+
+	//ReferenceFrame wallNormalXPositiveRef = ReferenceFrame(
+	//	{ 20, 5, 0 },
+	//	QuaternionFromAxisAngle({0, 0, 1}, PI / 2)
+	//);
+	//RoundedBox wallNormalXPositive = { wallNormalXPositiveRef, {5,1,20}, 0 };
+	//obs.push_back(wallNormalXPositive);
+
+	//ReferenceFrame wallNormalZPositiveRef = ReferenceFrame(
+	//	{ 0, 5, 20 },
+	//	QuaternionFromAxisAngle({ 1, 0, 0 }, PI / 2)
+	//);
+	//RoundedBox wallNormalZPositive = { wallNormalZPositiveRef, {20,1,5}, 0 };
+	//obs.push_back(wallNormalZPositive);
+
+	//ReferenceFrame wallNormalXNegativeRef = ReferenceFrame(
+	//	{ -20, 5, 0 },
+	//	QuaternionFromAxisAngle({ 0, 0, 1 }, PI / 2)
+	//);
+	//RoundedBox wallNormalXNegative = { wallNormalXNegativeRef, {5,1,20}, 0 };
+	//obs.push_back(wallNormalXNegative);
+
+	//ReferenceFrame wallNormalZNegativeRef = ReferenceFrame(
+	//	{ 0, 5, -20 },
+	//	QuaternionFromAxisAngle({ 1, 0, 0 }, PI / 2)
+	//);
+	//RoundedBox wallNormalZNegative = { wallNormalZNegativeRef, {20,1,5}, 0 };
+	//obs.push_back(wallNormalZNegative);
+
+
+	// Les obstacles
+	ReferenceFrame obs1Ref = ReferenceFrame(
+		{ 0, 0, 0 },
+		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
+	);
+	RoundedBox obs1 = { obs1Ref, {1,2,1}, 4 };
+	obs.push_back(obs1);
+
+	//ReferenceFrame obs2Ref = ReferenceFrame(
+	//	{ 10, 4, 0 },
+	//	QuaternionFromAxisAngle({ 0,1,1 }, PI)
+	//);
+	//RoundedBox obs2 = { obs2Ref, {1,2,1}, 0.5 };
+	//obs.push_back(obs2);
+
+	//ReferenceFrame obs3Ref = ReferenceFrame(
+	//	{ 10, 4, -10 },
+	//	QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
+	//);
+	//RoundedBox obs3 = { obs3Ref, {1,2,1}, 0.5 };
+	//obs.push_back(obs3);
+
+	//ReferenceFrame obs4Ref = ReferenceFrame(
+	//	{ 0, 4, 12 },
+	//	QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
+	//);
+	//RoundedBox obs4 = { obs4Ref, {1,2,1}, 0.5 };
+	//obs.push_back(obs4);
+
+	return obs;
+}
+
+void DrawScene(Sphere ball, std::vector<RoundedBox> obstacles) {
+	MyDrawSphere(ball, 4, 4, true, true, RED);
+	for each (RoundedBox obstacle in obstacles) {
+		MyDrawRoundedBox(obstacle, 10, 10, true, true/*, { 0, 0, 0, 0 }*/);
+	}
+}
 
 /// <summary>
 /// Méthode appelée dans le main pour tester les fonctionnalités développées.
@@ -1926,16 +2011,16 @@ void Tests() {
 	//}
 
 	// TEST SEGM RB INTERSECTION
-	RoundedBox rb = { ref5, {2, 7, 5}, 4 };
-	MyDrawRoundedBox(rb, 10, 10);
-	DrawLine3D(segment3.pt1, segment3.pt2, BLACK);
-	//MyDrawPolygonSphere({ {segment3.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
-	//MyDrawPolygonSphere({ {segment3.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
-	if (IntersectSegmentRoundedBox(segment3, rb, t, interPt, interNormal)) {
-		std::cout << "inter\n";
-		MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
-		DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
-	}
+	//RoundedBox rb = { ref5, {2, 7, 5}, 4 };
+	//MyDrawRoundedBox(rb, 10, 10);
+	//DrawLine3D(segment3.pt1, segment3.pt2, BLACK);
+	////MyDrawPolygonSphere({ {segment3.pt1,QuaternionIdentity()},.15f }, 16, 8, RED);
+	////MyDrawPolygonSphere({ {segment3.pt2,QuaternionIdentity()},.15f }, 16, 8, GREEN);
+	//if (IntersectSegmentRoundedBox(segment3, rb, t, interPt, interNormal)) {
+	//	std::cout << "inter\n";
+	//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
+	//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
+	//}
 
 	// STRESS TEST
 	//RoundedBox rb = { ref3, {2, 7, 5}, 2 };
@@ -1979,7 +2064,32 @@ void Tests() {
 	//	MyDrawPolygonSphere({ {interPt,QuaternionIdentity()},.1f }, 16, 8, RED);
 	//	DrawLine3D(interPt, Vector3Add(Vector3Scale(interNormal, 1), interPt), RED);
 	//}
+
+	// TEST BOUNCING PARTIE SPHERE
+	ReferenceFrame ballRef = ReferenceFrame(
+		{ 13, 15, 15 },
+		QuaternionIdentity()
+	);
+	float speed = 10;
+	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
+	Vector3 rotVectInit = Vector3Zero();
+	float mass = 2;
+	BouncingSphere ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
+	
+	std::vector<RoundedBox> obs;
+	ReferenceFrame obs1Ref = ReferenceFrame(
+		{ 0, 0, 0 },
+		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
+	);
+	RoundedBox obs1 = { obs1Ref, {1,2,1}, 4 };
+	obs.push_back(obs1);
+
+	UpdateBall(ball, obs, GetFrameTime());
+	DrawScene(ball.sphere, obs);
+
+
 }
+
 
 int main(int argc, char* argv[])
 {
@@ -2010,20 +2120,14 @@ int main(int argc, char* argv[])
 		{ 13, 15, 15 },
 		QuaternionIdentity()
 	);
-	float speed = 100;		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
+	float speed = 10;		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
 	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
 	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
 	BouncingSphere ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
 
 	// OBSTACLES
-	std::vector<RoundedBox> obstacles;
-	ReferenceFrame obstacle1Ref = ReferenceFrame(
-		{ 0, 0, 0 },
-		QuaternionFromAxisAngle({ 0,0,1}, 0)
-	);
-	RoundedBox obstacle1 = { obstacle1Ref, {2,3,4}, 4 };
-	obstacles.push_back(obstacle1);
+	std::vector<RoundedBox> obstacles = BuildSceneObs();
 
 
 
@@ -2059,11 +2163,11 @@ int main(int argc, char* argv[])
 
 			Tests();
 
-			// Mise à jour de l'état de la balle, pour appliquer les modifications
-			// entre la frame précédente et la frame actuelle
+			//// Mise à jour de l'état de la balle, pour appliquer les modifications
+			//// entre la frame précédente et la frame actuelle
 			//UpdateBall(ball, obstacles, deltaTime);			// en mode debug, passer 0.016667 à la place de deltatime
 
-			// Puis on dessine le resultat
+			//// Puis on dessine le resultat
 			//DrawScene(ball.sphere, obstacles);
 
 			
