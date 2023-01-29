@@ -302,6 +302,15 @@ Vector3 LocalToGlobalPos(Vector3 localPos, ReferenceFrame localRef) {
 	return Vector3Add(localRef.origin, LocalToGlobalVect(localPos, localRef));
 }
 
+bool IsPointInsideBox(Vector3 pt, Box obb) {
+	Vector3 localPt = GlobalToLocalPos(pt, obb.ref);
+	return (fabsf(localPt.x) < obb.extents.x && fabsf(localPt.y) < obb.extents.y && fabsf(localPt.z) < obb.extents.z);
+}
+
+bool IsSegmentInsideBox(Segment seg, Box obb) {
+	return (IsPointInsideBox(seg.pt1, obb) && IsPointInsideBox(seg.pt2, obb));
+}
+
 float RandomFloat(float LO, float HI) {
 	return LO + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (HI - LO)));
 }
@@ -1234,11 +1243,11 @@ bool IntersectSegmentCylinder(Segment seg, Cylinder cyl, float& t, Vector3& inte
 bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& interPt, Vector3& interNormal) {
 
 	// OBB
-	//ReferenceFrame refObb = ReferenceFrame(capsule.ref.origin, capsule.ref.q);
-	//Vector3 extentsObb = {capsule.radius, capsule.halfHeight + capsule.radius, capsule.radius};
-	//Box obb = { refObb, extentsObb};
-	//if (!IntersectSegmentBox(seg, obb, t, interPt, interNormal))
-	//	return false;
+	ReferenceFrame refObb = ReferenceFrame(capsule.ref.origin, capsule.ref.q);
+	Vector3 extentsObb = {capsule.radius, capsule.halfHeight + capsule.radius, capsule.radius};
+	Box obb = { refObb, extentsObb};
+	if (!IsSegmentInsideBox(seg, obb) && !IntersectSegmentBox(seg, obb, t, interPt, interNormal))
+		return false;
 
 	Vector3 up = LocalToGlobalPos({ 0, capsule.halfHeight, 0 }, capsule.ref);
 	Vector3 down = LocalToGlobalPos({ 0, - capsule.halfHeight, 0 }, capsule.ref);
@@ -1297,11 +1306,11 @@ bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 	Vector3& interPt, Vector3& interNormal) {
 
 	// OBB
-	//ReferenceFrame refObb = ReferenceFrame(rndBox.ref.origin, rndBox.ref.q);
-	//Vector3 extentsObb = { rndBox.extents.x + rndBox.radius, rndBox.extents.y + rndBox.radius, rndBox.extents.z + rndBox.radius };
-	//Box obb = { refObb, extentsObb };
-	//if (!IntersectSegmentBox(seg, obb, t, interPt, interNormal))
-	//	return false;
+	ReferenceFrame refObb = ReferenceFrame(rndBox.ref.origin, rndBox.ref.q);
+	Vector3 extentsObb = { rndBox.extents.x + rndBox.radius, rndBox.extents.y + rndBox.radius, rndBox.extents.z + rndBox.radius };
+	Box obb = { refObb, extentsObb };
+	if (!IsSegmentInsideBox(seg, obb) && !IntersectSegmentBox(seg, obb, t, interPt, interNormal))
+		return false;
 
 	// Le même type de Map que dans IntersectSegmentBox(), mais capable de stocker plusieurs types de primitives.
 	// Le int indique le type de l'object :
@@ -1638,10 +1647,13 @@ void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float del
 	Vector3 newPosition;
 	Vector3 newVelocity;
 	
+	//// com
+	//Segment remaining;
+	
 	bool anyCollision = false;
 	
-	//Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
-	//ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
+	Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
+	ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
 	
 	for each (Obstacle obstacle in obstacles) {
 		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)
@@ -1657,10 +1669,23 @@ void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float del
 
 	if (anyCollision) {
 		ball.sphere.ref.origin = newPosition;
+
+		// TODO
+		// On s'assure qu'il n'y a pas de collision suplémentaire qui se déroulerait après la première collision
+		// Tant que c'est le cas, alors on met à jour la balle
+		//anyCollision = false;
+		//do {
+		//	for each (Obstacle obstacle in obstacles) {
+		//		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, remaining, colT, colSpherePos, colNormal, newPosition, newVelocity)) {
+		//			anyCollision = true;
+		//		}
+		//	}
+		//} while (anyCollision);
 	}
 	else {
 		ball.sphere.ref.origin = computeNewPositionWithoutColliding(ball, deltaTime);
 	}
+	
 	ball.sphere.ref.q = computeNewOrient(ball, deltaTime);
 }
 
@@ -1683,7 +1708,7 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 		QuaternionIdentity()
 	);
 	float radius = 1;
-	float speed = 30;
+	float speed = 10;
 	Vector3 transVectInit = Vector3Scale({ -1, 0, -0.99 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
 	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
@@ -1696,9 +1721,9 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 		{ 0, 0, 0 },
 		QuaternionIdentity()
 	);
-	color = {180, 180, 180, 255};
+	color = {160, 160, 160, 255};
 	RoundedBox ground = { groundRef, {20,1,20}, 0 };
-	obstacle = Obstacle(ground, color, true);
+	obstacle = Obstacle(ground, color);
 	obstacles.push_back(obstacle);
 
 	ReferenceFrame topRef = ReferenceFrame(
@@ -1759,23 +1784,23 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 	ReferenceFrame obsRef;
 	color = PURPLE;
 	
-	//for (int i = -2; i < 3; i++) {
-	//	for (int j = -2; j < 3; j++) {
-	//		obsRef = ReferenceFrame(
-	//			{ j * deltaPos, 5, i * deltaPos },
-	//			QuaternionFromAxisAngle(RandomVector3Normalized(), RandomFloat(0, 2 * PI))
-	//		);
-	//		obstacle = Obstacle(RandomDimRoundedBox(obsRef, LOextent, HIextent, LOradius, HIradius), color);
-	//		obstacles.push_back(obstacle);
-	//	}
-	//}
+	for (int i = -2; i < 3; i++) {
+		for (int j = -2; j < 3; j++) {
+			obsRef = ReferenceFrame(
+				{ j * deltaPos, 5, i * deltaPos },
+				QuaternionFromAxisAngle(RandomVector3Normalized(), RandomFloat(0, 2 * PI))
+			);
+			obstacle = Obstacle(RandomDimRoundedBox(obsRef, LOextent, HIextent, LOradius, HIradius), color);
+			obstacles.push_back(obstacle);
+		}
+	}
 }
 
 void DrawScene(BouncingSphere ball, std::vector<Obstacle> obstacles) {
-	MyDrawSphere(ball.sphere, 8, 8, true, true, ball.color);
+	MyDrawSphere(ball.sphere, 6, 6, true, true, ball.color);
 	for each (Obstacle obstacle in obstacles) {
 		if (!obstacle.invisible)
-			MyDrawRoundedBox(obstacle.rb, 8, 8, true, true, obstacle.color);
+			MyDrawRoundedBox(obstacle.rb, 6, 6, true, true, obstacle.color, DARKGRAY);
 	}
 }
 
@@ -1783,8 +1808,7 @@ void DrawScene(BouncingSphere ball, std::vector<Obstacle> obstacles) {
 /// <summary>
 /// Méthode appelée dans le main pour tester les fonctionnalités développées.
 /// </summary>
-/// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! modifier le nom
-void Tests() {
+void TestDrawAndIntersect() {
 	float time = (float)GetTime();
 
 	ReferenceFrame refBase = ReferenceFrame(
@@ -2011,13 +2035,13 @@ void Tests() {
 /// <summary>
 /// Méthode appelée dans le main pour tester le rebond avec les configuations souhaitées.
 /// </summary>
-void BuildSceneTest(BouncingSphere& ball, std::vector<RoundedBox>& obs) {
+void BuildSceneTest(BouncingSphere& ball, std::vector<Obstacle>& obs) {
 	// TEST BOUNCING BALL ROUNDED BOX PARTIE SHPERE
 	ReferenceFrame ballRef = ReferenceFrame(
 		{ 13, 15, 15 },
 		QuaternionIdentity()
 	);
-	float speed = 10;
+	float speed = 5;
 	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
 	float mass = 2;
@@ -2028,7 +2052,8 @@ void BuildSceneTest(BouncingSphere& ball, std::vector<RoundedBox>& obs) {
 		{ 0, 0, 0 },
 		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
 	);
-	RoundedBox obs1 = { obs1Ref, {1,2,1}, 4 };
+	RoundedBox rb1 = { obs1Ref, {1,2,1}, 4 };
+	Obstacle obs1 = Obstacle(rb1, PURPLE);
 	obs.push_back(obs1);
 }
 
@@ -2083,13 +2108,13 @@ int main(int argc, char* argv[])
 		BeginMode3D(camera);
 		{			
 			// Referentiel 3D 
-			DrawGrid(20, 1.0f);
-			DrawLine3D({ 0 }, { 0,10,0 }, DARKGRAY);
-			DrawSphere({ 10,0,0 }, .2f, RED);
-			DrawSphere({ 0,10,0 }, .2f, GREEN);
-			DrawSphere({ 0,0,10 }, .2f, BLUE);
-			// 
-			//Tests();
+			//DrawGrid(20, 1.0f);
+			//DrawLine3D({ 0 }, { 0,10,0 }, DARKGRAY);
+			//DrawSphere({ 10,0,0 }, .2f, RED);
+			//DrawSphere({ 0,10,0 }, .2f, GREEN);
+			//DrawSphere({ 0,0,10 }, .2f, BLUE);
+
+			//TestDrawAndIntersect();
 
 			// Mise à jour de l'état de la balle, pour appliquer les modifications
 			// entre la frame précédente et la frame actuelle
@@ -2097,18 +2122,6 @@ int main(int argc, char* argv[])
 
 			// Puis on dessine le resultat
 			DrawScene(ball, obstacles);
-
-			
-			//std::cout << ball.rotVect.x << "\n";
-			//std::cout << ball.rotVect.y << "\n";
-			//std::cout << ball.rotVect.z << "\n";
-			//std::cout << Vector3Length(ball.rotVect) << "\n\n";
-
-			//std::cout << ball.sphere.ref.q.x << "\n";
-			//std::cout << ball.sphere.ref.q.y << "\n";
-			//std::cout << ball.sphere.ref.q.z << "\n";
-			//std::cout << ball.sphere.ref.q.w << "\n\n";
-
 
 		}
 		EndMode3D();
