@@ -741,68 +741,37 @@ void MyDrawSphere(Sphere sphere, int nMeridians, int nParallels, bool
 void MyDrawPolygonCapsule(Capsule capsule, int nSectors, int nParallels, Color
 	color = LIGHTGRAY)
 {
-	rlPushMatrix();
-
-	rlTranslatef(capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z);
-	Vector3 vect;
-	float angle;
-	QuaternionToAxisAngle(capsule.ref.q, &vect, &angle);
-	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
-	rlScalef(capsule.radius, capsule.halfHeight, capsule.radius);
-
-	Vector3 bottom = { 0, -1, 0 };
-	Vector3 top = { 0, 1, 0 };
-
-	Cylinder cyl = { ReferenceFrame(), 1, 1 };
+	Cylinder cyl = { 
+		ReferenceFrame({capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z}, capsule.ref.q),
+		capsule.halfHeight,
+		capsule.radius
+	};
 	MyDrawPolygonCylinder(cyl, nSectors, false, color);
 
-	// On ne souhaite pas que les sphères soient ovales à cause du redimentionnement de rlScalef().
-	// On crée alors une nouvelle matrice, identique à la précédente, à l'exception qu'elle n'inclut pas
-	// de transformation de scaling
-	rlPopMatrix();
-	rlPushMatrix();
-	rlTranslatef(capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z);
-	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
-
-	Sphere sphereBottom = { ReferenceFrame({ 0, -capsule.halfHeight, 0 }, QuaternionIdentity()), capsule.radius };
-	Sphere sphereTop = { ReferenceFrame({ 0, capsule.halfHeight, 0 }, QuaternionIdentity()), capsule.radius };
+	Sphere sphereBottom = {
+		ReferenceFrame({capsule.ref.origin.x, capsule.ref.origin.y - capsule.halfHeight, capsule.ref.origin.z},
+		capsule.ref.q),
+		capsule.radius 
+	};
+	Sphere sphereTop = {
+		ReferenceFrame({capsule.ref.origin.x, capsule.ref.origin.y + capsule.halfHeight, capsule.ref.origin.z},
+		capsule.ref.q),
+		capsule.radius 
+	};
 	MyDrawPolygonSphere(sphereTop, nSectors, nParallels, color);
 	MyDrawPolygonSphere(sphereBottom, nSectors, nParallels, color);
-
-	rlPopMatrix();
 }
 
 void MyDrawWireframeCapsule(Capsule capsule, int nSectors, int nParallels, Color
-	color = LIGHTGRAY) {
-	rlPushMatrix();
-
-	rlTranslatef(capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z);
-	Vector3 vect;
-	float angle;
-	QuaternionToAxisAngle(capsule.ref.q, &vect, &angle);
-	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
-	rlScalef(capsule.radius, capsule.halfHeight, capsule.radius);
-
-	Vector3 bottom = { 0, -1, 0 };
-	Vector3 top = { 0, 1, 0 };
-
-	Cylinder cyl = { ReferenceFrame(), 1, 1 };
+	color = LIGHTGRAY)
+{
+	Cylinder cyl = { ReferenceFrame({capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z}, capsule.ref.q), capsule.halfHeight, capsule.radius };
 	MyDrawWireframeCylinder(cyl, nSectors, false, color);
 
-	// On ne souhaite pas que les sphères soient ovales à cause du redimentionnement de rlScalef().
-	// On crée alors une nouvelle matrice, identique à la précédente, à l'exception qu'elle n'inclut pas
-	// de transformation de scaling
-	rlPopMatrix();
-	rlPushMatrix();
-	rlTranslatef(capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z);
-	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
-
-	Sphere sphereBottom = { ReferenceFrame({ 0, -capsule.halfHeight, 0 }, QuaternionIdentity()), capsule.radius };
-	Sphere sphereTop = { ReferenceFrame({ 0, capsule.halfHeight, 0 }, QuaternionIdentity()), capsule.radius };
+	Sphere sphereBottom = { ReferenceFrame({capsule.ref.origin.x, capsule.ref.origin.y - capsule.halfHeight, capsule.ref.origin.z}, capsule.ref.q), capsule.radius };
+	Sphere sphereTop = { ReferenceFrame({capsule.ref.origin.x, capsule.ref.origin.y + capsule.halfHeight, capsule.ref.origin.z}, capsule.ref.q), capsule.radius };
 	MyDrawWireframeSphere(sphereTop, nSectors, nParallels, color);
 	MyDrawWireframeSphere(sphereBottom, nSectors, nParallels, color);
-
-	rlPopMatrix();
 }
 
 void MyDrawCapsule(Capsule capsule, int nSectors, int nParallels, bool
@@ -1627,7 +1596,7 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 	// pour l'instant je pars du principe qu'il n'y qu'une seule collision possible
 	for each (RoundedBox obstacle in obstacles) {
 		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)) {
-			std::cout << "inter\n";
+			//std::cout << "inter\n";
 			ball.sphere.ref.origin = newPosition;
 			ball.translVect = newVelocity;
 			ball.rotVect = ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
@@ -1669,12 +1638,12 @@ void BuildScene(BouncingSphere& ball, std::vector<RoundedBox>& obs) {
 	RoundedBox ground = { groundRef, {20,1,20}, 0 };
 	obs.push_back(ground);
 
-	ReferenceFrame topRef = ReferenceFrame(
+	/*ReferenceFrame topRef = ReferenceFrame(
 		{ 0, 10, 0 },
 		QuaternionIdentity()
 	);
 	RoundedBox top = { topRef, {20,1,20}, 0 };
-	obs.push_back(top);
+	obs.push_back(top);*/
 
 	ReferenceFrame wallNormalXPositiveRef = ReferenceFrame(
 		{ 20, 5, 0 },
@@ -1713,32 +1682,46 @@ void BuildScene(BouncingSphere& ball, std::vector<RoundedBox>& obs) {
 	RoundedBox obs1 = { obs1Ref, {1,2,1}, 4 };
 	obs.push_back(obs1);
 
-	//ReferenceFrame obs2Ref = ReferenceFrame(
-	//	{ 10, 4, 0 },
-	//	QuaternionFromAxisAngle({ 0,1,1 }, PI)
-	//);
-	//RoundedBox obs2 = { obs2Ref, {1,2,1}, 0.5 };
-	//obs.push_back(obs2);
+	ReferenceFrame obs2Ref = ReferenceFrame(
+		{ 10, 4, 0 },
+		QuaternionFromAxisAngle({ 0,1,1 }, PI)
+	);
+	RoundedBox obs2 = { obs2Ref, {1,2,1}, 0.5 };
+	obs.push_back(obs2);
 
-	//ReferenceFrame obs3Ref = ReferenceFrame(
-	//	{ 10, 4, -10 },
-	//	QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
-	//);
-	//RoundedBox obs3 = { obs3Ref, {1,2,1}, 0.5 };
-	//obs.push_back(obs3);
+	ReferenceFrame obs4Ref = ReferenceFrame(
+		{ 0, 4, 12 },
+		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
+	);
+	RoundedBox obs4 = { obs4Ref, {1,2,1}, 0.5 };
+	obs.push_back(obs4);
 
-	//ReferenceFrame obs4Ref = ReferenceFrame(
-	//	{ 0, 4, 12 },
-	//	QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
-	//);
-	//RoundedBox obs4 = { obs4Ref, {1,2,1}, 0.5 };
-	//obs.push_back(obs4);
+	ReferenceFrame obs5Ref = ReferenceFrame(
+		{ 0, 4, 12 },
+		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
+	);
+	RoundedBox obs5 = { obs5Ref, {1,2,1}, 0.5 };
+	obs.push_back(obs5);
+
+	ReferenceFrame obs6Ref = ReferenceFrame(
+		{ 0, 4, 12 },
+		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
+	);
+	RoundedBox obs6 = { obs6Ref, {1,2,1}, 0.5 };
+	obs.push_back(obs6);
+
+	ReferenceFrame obs7Ref = ReferenceFrame(
+		{ 0, 4, 12 },
+		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
+	);
+	RoundedBox obs7 = { obs7Ref, {1,2,1}, 0.5 };
+	obs.push_back(obs7);
 }
 
 void DrawScene(Sphere ball, std::vector<RoundedBox> obstacles) {
 	MyDrawSphere(ball, 4, 4, true, true, RED);
 	for each (RoundedBox obstacle in obstacles) {
-		MyDrawRoundedBox(obstacle, 10, 10, true, true, { 0, 0, 0, 0 });
+		MyDrawRoundedBox(obstacle, 10, 10, true, true/*, { 0, 0, 0, 0 }*/);
 	}
 }
 
@@ -2049,7 +2032,7 @@ int main(int argc, char* argv[])
 			DrawSphere({ 0,10,0 }, .2f, GREEN);
 			DrawSphere({ 0,0,10 }, .2f, BLUE);
 
-			Tests();
+			//Tests();
 
 			// Mise à jour de l'état de la balle, pour appliquer les modifications
 			// entre la frame précédente et la frame actuelle

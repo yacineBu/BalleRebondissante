@@ -1,0 +1,2 @@
+Chemin relatif d’accès au fichier .sln : \projects\VS2019
+
