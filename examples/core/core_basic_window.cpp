@@ -131,6 +131,10 @@ struct Sphere {
 	float radius;
 };
 
+/// <summary>
+/// Utilisé pour simuler le comportement physique de la balle pendant la simulation.
+/// Défini également sa couleur de dessin.
+/// </summary>
 struct BouncingSphere {
 	Sphere sphere;
 
@@ -143,21 +147,23 @@ struct BouncingSphere {
 	// Son axe indique l'axe de rotation et le sens de rotation.
 	// Sa norme indique la vitesse angulaire de rotation.
 	Vector3 rotVect;
-	
+
 	float mass;
 	Vector3 angularMomentum;
 	float momentOfInertia;
+	Color color;
 
 	BouncingSphere() {
 	}
 
-	BouncingSphere(Sphere sphere, Vector3 translVect, Vector3 rotVect, float mass) {
+	BouncingSphere(Sphere sphere, Vector3 translVect, Vector3 rotVect, float mass, Color color) {
 		this->sphere = sphere;
 		this->translVect = translVect;
 		this->rotVect = rotVect;
 		this->mass = mass;
 		this->angularMomentum = Vector3Zero();
 		this->momentOfInertia = (2 * mass * pow(sphere.radius, 2) / 5);
+		this->color = RED;
 	}
 };
 
@@ -182,6 +188,30 @@ struct RoundedBox {
 	ReferenceFrame ref;
 	Vector3 extents;
 	float radius;
+};
+
+/// <summary>
+/// Utilisé pour définir une couleur aux obstacles dessinés dans la simulation.
+/// </summary>
+struct Obstacle {
+	RoundedBox rb;
+	Color color;
+	bool invisible;
+
+	Obstacle() {
+	}
+
+	Obstacle(RoundedBox rb, Color color) {
+		this->rb = rb;
+		this->color = color;
+		this->invisible = false;
+	}
+
+	Obstacle(RoundedBox rb, Color color, bool invisible) {
+		this->rb = rb;
+		this->color = color;
+		this->invisible = invisible;
+	}
 };
 #pragma endregion;
 
@@ -256,8 +286,7 @@ Vector3 LocalToGlobalVect(Vector3 localVect, ReferenceFrame localRef) {
 /// <param name="globalPos">Le point à convertir</param>
 /// <param name="localRef">Référentiel local cible</param>
 /// <returns>Point exprimé en coordonnées locales</returns>
-Vector3 GlobalToLocalPos(Vector3 globalPos, ReferenceFrame localRef)
-{
+Vector3 GlobalToLocalPos(Vector3 globalPos, ReferenceFrame localRef) {
 	Vector3 globalVect = Vector3Subtract(globalPos, localRef.origin);
 
 	return GlobalToLocalVect(globalVect, localRef);
@@ -270,8 +299,25 @@ Vector3 GlobalToLocalPos(Vector3 globalPos, ReferenceFrame localRef)
 /// <param name="localRef">Référentiel local source</param>
 /// <returns>Point exprimé en coordonnées globales</returns>
 Vector3 LocalToGlobalPos(Vector3 localPos, ReferenceFrame localRef) {
-
 	return Vector3Add(localRef.origin, LocalToGlobalVect(localPos, localRef));
+}
+
+float RandomFloat(float LO, float HI) {
+	return LO + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (HI - LO)));
+}
+
+int RandomInt(int LO, int HI) {
+	return rand() % (HI - LO + 1) + LO;
+}
+
+Vector3 RandomVector3Normalized() {
+	float LOcoord = -10.0;
+	float HIcoord = 10.0;
+	return Vector3Normalize({RandomFloat(LOcoord, HIcoord), RandomFloat(LOcoord, HIcoord), RandomFloat(LOcoord, HIcoord)});
+}
+
+RoundedBox RandomDimRoundedBox(ReferenceFrame ref, float LOextent, float HIextent, float LOradius, float HIradius) {
+	return { ref, RandomFloat(LOextent, HIextent), RandomFloat(LOextent, HIextent), RandomFloat(LOextent, HIextent), RandomFloat(LOradius, HIradius) };
 }
 #pragma endregion;
 
@@ -627,7 +673,8 @@ void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	if (nMeridians < 2 || nParallels < 1)
 		return;
 
-	int numVertex = 1000;		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// forme factorisé de numVertex = (2 * nMeridians * (3 * 1)) + nParallels (2 * nMeridians * (3 * 2)) + (2 * nMeridians * (3 * 1))
+	int numVertex = 12 * nMeridians * (1 + nParallels);
 	if (rlCheckBufferLimit(numVertex)) rlglDraw();
 
 	rlPushMatrix();
@@ -1449,7 +1496,7 @@ void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
 	Spherical sphDelta;
 
 	float rhoMin = 4;
-	float rhoMax = 40;
+	float rhoMax = 60;
 
 	Vector2 mousePos;
 	Vector2 mouseVect;
@@ -1583,7 +1630,7 @@ Quaternion computeNewOrient(BouncingSphere ball, float deltaTime) {
 	return QuaternionMultiply(ball.sphere.ref.q, QuaternionFromAxisAngle(Vector3Normalize(ball.rotVect), Vector3Length(ball.rotVect) * deltaTime));
 }
 
-void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float deltaTime) {
+void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float deltaTime) {
 	float colT;
 	Vector3 colSpherePos;
 	Vector3 colNormal;
@@ -1594,8 +1641,8 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 	ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
 	
 	// pour l'instant je pars du principe qu'il n'y qu'une seule collision possible
-	for each (RoundedBox obstacle in obstacles) {
-		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)) {
+	for each (Obstacle obstacle in obstacles) {
+		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)) {
 			//std::cout << "inter\n";
 			ball.sphere.ref.origin = newPosition;
 			ball.translVect = newVelocity;
@@ -1613,115 +1660,114 @@ void UpdateBall(BouncingSphere& ball, std::vector<RoundedBox> obstacles, float d
 #pragma endregion
 
 /// <summary>
-/// Construit la scène avec la balle ainsi que les différentes obstacles, des Rounded Box, avec lesquels la balle entrera en collision
-/// <param name="ball"></param>
-/// <param name="obs"></param>
+/// Construit la scène avec la balle ainsi que les différentes obstacles, des Rounded Box, avec lesquels la balle entrera en collision.
+/// Les obstacles sont générés aléatoirement, mais à des positions fixés.
+/// <param name="ball">La référence d'une BouncingSphere. La méthode initialise la BouncingSphere.</param>
+/// <param name="obstacles">La référence d'un tableau de Obstacle. La méthode créer les obstacles et les insert dans ce tableau.</param>
 /// </summary>
-void BuildScene(BouncingSphere& ball, std::vector<RoundedBox>& obs) {
-	// BALL
+void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
+	Color color;
+	Obstacle obstacle;
+
+	// La balle
 	ReferenceFrame ballRef = ReferenceFrame(
-		{ 13, 15, 15 },
+		{ 8, 4, -12 },
 		QuaternionIdentity()
 	);
-	float speed = 10;		// !!!!!!!!!!!! : Pour la démo, ne pas baisser la vitesse < 30.
+	float radius = 1;
+	float speed = 10;
 	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
 	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
-	ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
+	color = RED;
+	ball = BouncingSphere({ ballRef, radius }, transVectInit, rotVectInit, mass, color);
 
-	// METTRE 0 SUR EXTENT Y PTET CA AIDERAIT A FLUIDIFIER
 	// Le sol et les 4 murs
+	// METTRE 0 SUR EXTENT Y PTET CA AIDERAIT A FLUIDIFIER
 	ReferenceFrame groundRef = ReferenceFrame(
 		{ 0, 0, 0 },
 		QuaternionIdentity()
 	);
+	color = {180, 180, 180, 255};
 	RoundedBox ground = { groundRef, {20,1,20}, 0 };
-	obs.push_back(ground);
+	obstacle = Obstacle(ground, color, true);
+	obstacles.push_back(obstacle);
 
-	/*ReferenceFrame topRef = ReferenceFrame(
+	ReferenceFrame topRef = ReferenceFrame(
 		{ 0, 10, 0 },
 		QuaternionIdentity()
 	);
+	color = LIGHTGRAY;
 	RoundedBox top = { topRef, {20,1,20}, 0 };
-	obs.push_back(top);*/
+	obstacle = Obstacle(top, color, true);
+	obstacles.push_back(obstacle);
 
 	ReferenceFrame wallNormalXPositiveRef = ReferenceFrame(
 		{ 20, 5, 0 },
-		QuaternionFromAxisAngle({0, 0, 1}, PI / 2)
+		QuaternionFromAxisAngle({ 0, 0, 1 }, PI / 2)
 	);
 	RoundedBox wallNormalXPositive = { wallNormalXPositiveRef, {5,1,20}, 0 };
-	obs.push_back(wallNormalXPositive);
+	obstacle = Obstacle(wallNormalXPositive, color);
+	obstacles.push_back(obstacle);
 
 	ReferenceFrame wallNormalZPositiveRef = ReferenceFrame(
 		{ 0, 5, 20 },
 		QuaternionFromAxisAngle({ 1, 0, 0 }, PI / 2)
 	);
 	RoundedBox wallNormalZPositive = { wallNormalZPositiveRef, {20,1,5}, 0 };
-	obs.push_back(wallNormalZPositive);
+	obstacle = Obstacle(wallNormalZPositive, color);
+	obstacles.push_back(obstacle);
 
 	ReferenceFrame wallNormalXNegativeRef = ReferenceFrame(
 		{ -20, 5, 0 },
 		QuaternionFromAxisAngle({ 0, 0, 1 }, PI / 2)
 	);
 	RoundedBox wallNormalXNegative = { wallNormalXNegativeRef, {5,1,20}, 0 };
-	obs.push_back(wallNormalXNegative);
+	obstacle = Obstacle(wallNormalXNegative, color);
+	obstacles.push_back(obstacle);
 
 	ReferenceFrame wallNormalZNegativeRef = ReferenceFrame(
 		{ 0, 5, -20 },
 		QuaternionFromAxisAngle({ 1, 0, 0 }, PI / 2)
 	);
 	RoundedBox wallNormalZNegative = { wallNormalZNegativeRef, {20,1,5}, 0 };
-	obs.push_back(wallNormalZNegative);
+	obstacle = Obstacle(wallNormalZNegative, color);
+	obstacles.push_back(obstacle);
 
+	//ReferenceFrame containerRef = ReferenceFrame(
+	//	{ 0, 0, 0 },
+	//	QuaternionIdentity()
+	//);
+	//RoundedBox container = { containerRef, {20, 8, 20}, 0 };
+	//obstacle = Obstacle( container, color);
+	//obstacles.push_back(obstacle);
 
-	// Les obstacles
-	ReferenceFrame obs1Ref = ReferenceFrame(
-		{ 0, 0, 0 },
-		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
-	);
-	RoundedBox obs1 = { obs1Ref, {1,2,1}, 4 };
-	obs.push_back(obs1);
-
-	ReferenceFrame obs2Ref = ReferenceFrame(
-		{ 10, 4, 0 },
-		QuaternionFromAxisAngle({ 0,1,1 }, PI)
-	);
-	RoundedBox obs2 = { obs2Ref, {1,2,1}, 0.5 };
-	obs.push_back(obs2);
-
-	ReferenceFrame obs4Ref = ReferenceFrame(
-		{ 0, 4, 12 },
-		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
-	);
-	RoundedBox obs4 = { obs4Ref, {1,2,1}, 0.5 };
-	obs.push_back(obs4);
-
-	ReferenceFrame obs5Ref = ReferenceFrame(
-		{ 0, 4, 12 },
-		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
-	);
-	RoundedBox obs5 = { obs5Ref, {1,2,1}, 0.5 };
-	obs.push_back(obs5);
-
-	ReferenceFrame obs6Ref = ReferenceFrame(
-		{ 0, 4, 12 },
-		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
-	);
-	RoundedBox obs6 = { obs6Ref, {1,2,1}, 0.5 };
-	obs.push_back(obs6);
-
-	ReferenceFrame obs7Ref = ReferenceFrame(
-		{ 0, 4, 12 },
-		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
-	);
-	RoundedBox obs7 = { obs7Ref, {1,2,1}, 0.5 };
-	obs.push_back(obs7);
+	// Les autres obstacles
+	float LOextent = 0.5;
+	float HIextent = 1.5;
+	float LOradius = 0;
+	float HIradius = 1;
+	float deltaPos = 6.6667;
+	ReferenceFrame obsRef;
+	color = PURPLE;
+	
+	for (int i = -2; i < 3; i++) {
+		for (int j = -2; j < 3; j++) {
+			obsRef = ReferenceFrame(
+				{ j * deltaPos, 5, i * deltaPos },
+				QuaternionFromAxisAngle(RandomVector3Normalized(), RandomFloat(0, 2 * PI))
+			);
+			obstacle = Obstacle(RandomDimRoundedBox(obsRef, LOextent, HIextent, LOradius, HIradius), color);
+			obstacles.push_back(obstacle);
+		}
+	}
 }
 
-void DrawScene(Sphere ball, std::vector<RoundedBox> obstacles) {
-	MyDrawSphere(ball, 4, 4, true, true, RED);
-	for each (RoundedBox obstacle in obstacles) {
-		MyDrawRoundedBox(obstacle, 10, 10, true, true/*, { 0, 0, 0, 0 }*/);
+void DrawScene(BouncingSphere ball, std::vector<Obstacle> obstacles) {
+	MyDrawSphere(ball.sphere, 8, 8, true, true, ball.color);
+	for each (Obstacle obstacle in obstacles) {
+		if (!obstacle.invisible)
+			MyDrawRoundedBox(obstacle.rb, 8, 8, true, true, obstacle.color);
 	}
 }
 
@@ -1967,7 +2013,8 @@ void BuildSceneTest(BouncingSphere& ball, std::vector<RoundedBox>& obs) {
 	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
 	float mass = 2;
-	ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass);
+	Color color = RED;
+	ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass, color);
 
 	ReferenceFrame obs1Ref = ReferenceFrame(
 		{ 0, 0, 0 },
@@ -1982,12 +2029,14 @@ void BuildSceneTest(BouncingSphere& ball, std::vector<RoundedBox>& obs) {
 
 int main(int argc, char* argv[])
 {
+	srand(time(0));
+
 	// Initialization
 	//--------------------------------------------------------------------------------------
 	float screenSizeCoef = .9f;
 	const int screenWidth = 1920 * screenSizeCoef;
 	const int screenHeight = 1080 * screenSizeCoef;
-	InitWindow(screenWidth, screenHeight, "ESIEE - E3FI - 2022 - 2023 - Maths 3D");
+	InitWindow(screenWidth, screenHeight, "Simulation balle rebondissante");
 	SetTargetFPS(60);
 
 	// CAMERA
@@ -2001,7 +2050,7 @@ int main(int argc, char* argv[])
 	SetCameraMode(camera, CAMERA_CUSTOM);  // Set an orbital camera mode
 
 	BouncingSphere ball;
-	std::vector<RoundedBox> obstacles;
+	std::vector<Obstacle> obstacles;
 	BuildScene(ball, obstacles);
 	//BuildSceneTest(ball, obstacles);
 
@@ -2031,7 +2080,7 @@ int main(int argc, char* argv[])
 			DrawSphere({ 10,0,0 }, .2f, RED);
 			DrawSphere({ 0,10,0 }, .2f, GREEN);
 			DrawSphere({ 0,0,10 }, .2f, BLUE);
-
+			// 
 			//Tests();
 
 			// Mise à jour de l'état de la balle, pour appliquer les modifications
@@ -2039,7 +2088,7 @@ int main(int argc, char* argv[])
 			UpdateBall(ball, obstacles, deltaTime);			// en mode debug, passer 0.016667 à la place de deltatime
 
 			// Puis on dessine le resultat
-			DrawScene(ball.sphere, obstacles);
+			DrawScene(ball, obstacles);
 
 			
 			//std::cout << ball.rotVect.x << "\n";
