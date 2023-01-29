@@ -191,7 +191,7 @@ struct RoundedBox {
 };
 
 /// <summary>
-/// Utilisé pour définir une couleur aux obstacles dessinés dans la simulation.
+/// Utilisé pour définir une couleur aux obstacles et s'ils doivent être dessinés ou non dans la simulation.
 /// </summary>
 struct Obstacle {
 	RoundedBox rb;
@@ -216,10 +216,20 @@ struct Obstacle {
 #pragma endregion;
 
 #pragma region Tools;
+/// <summary>
+/// Converti des coordonnées cylindriques en coordonnées cartésiennes.
+/// </summary>
+/// <param name="cyl">Coordonnées cylindriques</param>
+/// <returns>Coordonnées cartésiennes</returns>
 Vector3 CylindricalToCartesian(Cylindrical cyl) {
 	return { cyl.rho * sinf(cyl.theta), cyl.y, cyl.rho * cosf(cyl.theta) };
 }
 
+/// <summary>
+/// Converti des coordonnées cartésiennes en coordonnées cylindriques.
+/// </summary>
+/// <param name="cart">Coordonnées cartésiennes</param>
+/// <returns>Coordonnées cylindriques</returns>
 Cylindrical CartesianToCylindrical(Vector3 cart) {
 	Cylindrical cyl = {
 		sqrt((double)powf(cart.x, 2) + (double)powf(cart.z, 2)),
@@ -232,6 +242,11 @@ Cylindrical CartesianToCylindrical(Vector3 cart) {
 	return cyl;
 }
 
+/// <summary>
+/// Converti des coordonnées sphériques en coordonnées cartésiennes.
+/// </summary>
+/// <param name="sph">Coordonnées sphériques</param>
+/// <returns>Coordonnées cartésiennes</returns>
 Vector3 SphericalToCartesian(Spherical sph) {
 	return {
 		sph.rho * sinf(sph.phi) * sinf(sph.theta),
@@ -240,6 +255,11 @@ Vector3 SphericalToCartesian(Spherical sph) {
 	};
 }
 
+/// <summary>
+/// Converti des coordonnées sphériques cartésiennes en coordonnées sphériques.
+/// </summary>
+/// <param name="cart">Coordonnées cartésiennes</param>
+/// <returns>Coordonnées sphériques</returns>
 Spherical CartesianToSpherical(Vector3 cart) {
 	Spherical sph = {
 		sqrt((double)pow(cart.x, 2) + (double)pow(cart.y, 2) + (double)pow(cart.z, 2)),

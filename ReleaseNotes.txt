@@ -1,2 +1,32 @@
-Chemin relatif d’accès au fichier .sln : \projects\VS2019
+CONFIGURATION ET LANCEMENT DU PROJET
+Ouvrir la solution Visual Studio en sélectionnant le fichier .sln via le chemin suivant : \projects\VS2019
 
+Une vidéo de démonstration se trouve dans ce même chemin.
+
+Au niveau de la fenêtre Solution Explorer, s’assurer que le projet core_basic_window_cpp est défini en tant que projet de démarrage (le nom doit être en gras). Si ce n’est pas le cas, faire un clic droit dessus et sélectionner l’option "Set as Startup Project".
+Lancer le projet avec CTRL+F5 pour observer la simulation.
+
+En cas d’erreurs de compilation, re-cibler les projets core_basic_window_cpp et raylib de la solution vers le dernier framework de développement installé sur votre machine. Faire cela en sélectionnant les projets depuis la fenêtre Solution Explorer.
+
+
+
+LIMITATIONS ET BUGS CONNUS
+Au stade actuel du développement, la méthode de détection de collision entre la balle et les obstacles ( UpdateBall() ) n’est pas capable de gérer plus d’une collision par frame. Cela explique pourquoi la balle se retrouve à sortir soudainement de la scène.
+
+Par manque de temps, certaines méthodes de dessins et d’intersection de primitives manquent, en particulier le dessin de la sphère en wireframe qui aurait pu permettre de mieux observer la balle pivoter sur elle-même.
+
+
+
+VOIES D’AMELIORATION
+Il aurait été préférable que les méthodes de dessin de Capsule et de Rouded Box dessinent des portions de cylindre et de sphère, de manière à accélérer leur exécution et à réduire le nombre de Vertices à gérer dans la scène finale.
+
+Des optimisations en temps d’exécution au niveau de l’ensemble du code permettraient un rendu plus fluide, des latences ont été constatés sous certaines circonstances (en exécutant le code sur pc portable sur batterie notamment).
+
+
+
+ORGANISATION DU PROJET
+Ali BENMERAD s’est chargé du développement de la caméra orbitale et d’une partie des méthodes d’affichage des primitives 3D.
+
+Rayan BOUFENGHOUR a posé les équations d’intersection segment primitives 3D et a codé une partie des méthodes d’intersection.
+
+Yacine BURTIN a intervenu sur l’ensemble du projet en débloquant l’équipe sur les difficultés de développement rencontrés. Il a réalisé les méthodes pour la simulation de rebondissement de la balle via les méthodes d’affichage et d’intersections développés. La priorisation des tâches au sein de l’équipe selon le temps restant a également été gérée par lui-même.
