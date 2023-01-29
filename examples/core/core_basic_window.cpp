@@ -1616,7 +1616,7 @@ Vector3 ApplyFriction(BouncingSphere ball, float deltaTime, Vector3 colSpherePos
 /// <param name="ball">La balle en mouvement</param>
 /// <param name="deltaTime">Le temps en seconde écoulé entre les 2 frames</param>
 /// <returns>Nouvelle position de la balle</returns>
-Vector3 computeNewPosition(BouncingSphere ball, float deltaTime) {
+Vector3 computeNewPositionWithoutColliding(BouncingSphere ball, float deltaTime) {
 	return Vector3Add(ball.sphere.ref.origin, Vector3Scale(ball.translVect, deltaTime));
 }
 
@@ -1632,28 +1632,36 @@ Quaternion computeNewOrient(BouncingSphere ball, float deltaTime) {
 
 void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float deltaTime) {
 	float colT;
+	float lowerColT = FLT_MAX;
 	Vector3 colSpherePos;
 	Vector3 colNormal;
 	Vector3 newPosition;
 	Vector3 newVelocity;
 	
-	Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
-	ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
+	bool anyCollision = false;
 	
-	// pour l'instant je pars du principe qu'il n'y qu'une seule collision possible
+	//Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
+	//ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
+	
 	for each (Obstacle obstacle in obstacles) {
-		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)) {
+		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)
+			&& colT < lowerColT) {
+			anyCollision = true;
+			lowerColT = colT;
+
 			//std::cout << "inter\n";
-			ball.sphere.ref.origin = newPosition;
 			ball.translVect = newVelocity;
 			ball.rotVect = ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
-			ball.sphere.ref.q = computeNewOrient(ball, deltaTime);
-			return;
 		}
 	}
 
+	if (anyCollision) {
+		ball.sphere.ref.origin = newPosition;
+	}
+	else {
+		ball.sphere.ref.origin = computeNewPositionWithoutColliding(ball, deltaTime);
+	}
 	ball.sphere.ref.q = computeNewOrient(ball, deltaTime);
-	ball.sphere.ref.origin = computeNewPosition(ball, deltaTime);
 }
 
 
@@ -1671,12 +1679,12 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 
 	// La balle
 	ReferenceFrame ballRef = ReferenceFrame(
-		{ 8, 4, -12 },
+		{ 10, 4, 10 },
 		QuaternionIdentity()
 	);
 	float radius = 1;
-	float speed = 10;
-	Vector3 transVectInit = Vector3Scale({ -1, -0.9, -1 }, speed);
+	float speed = 30;
+	Vector3 transVectInit = Vector3Scale({ -1, 0, -0.99 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
 	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
 	color = RED;
@@ -1751,16 +1759,16 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 	ReferenceFrame obsRef;
 	color = PURPLE;
 	
-	for (int i = -2; i < 3; i++) {
-		for (int j = -2; j < 3; j++) {
-			obsRef = ReferenceFrame(
-				{ j * deltaPos, 5, i * deltaPos },
-				QuaternionFromAxisAngle(RandomVector3Normalized(), RandomFloat(0, 2 * PI))
-			);
-			obstacle = Obstacle(RandomDimRoundedBox(obsRef, LOextent, HIextent, LOradius, HIradius), color);
-			obstacles.push_back(obstacle);
-		}
-	}
+	//for (int i = -2; i < 3; i++) {
+	//	for (int j = -2; j < 3; j++) {
+	//		obsRef = ReferenceFrame(
+	//			{ j * deltaPos, 5, i * deltaPos },
+	//			QuaternionFromAxisAngle(RandomVector3Normalized(), RandomFloat(0, 2 * PI))
+	//		);
+	//		obstacle = Obstacle(RandomDimRoundedBox(obsRef, LOextent, HIextent, LOradius, HIradius), color);
+	//		obstacles.push_back(obstacle);
+	//	}
+	//}
 }
 
 void DrawScene(BouncingSphere ball, std::vector<Obstacle> obstacles) {
