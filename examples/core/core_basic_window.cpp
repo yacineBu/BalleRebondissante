@@ -1583,18 +1583,20 @@ bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 	RoundedBox rndBox,
 	Vector3 velocity,
 	float deltaTime,
+	float TtoTravel,
 	float& colT,
 	Vector3& colSpherePos,
 	Vector3& colNormal,
-	Vector3& newPosition,
-	Vector3& newVelocity) {
+	Vector3& newPosition,			// a suppr j'crois bien
+	Vector3& newVelocity,
+	float& remainingTtoTravel) {
 
 	// Cette Rounded Box, qui est la somme de Minkowski entre la sphère et la rounded box obstacle, est utilisée
 	// pour déterminer si la sphère entre en collision avec la rounded box obstacle.
 	RoundedBox minkowskiSum = { rndBox.ref, rndBox.extents, rndBox.radius + sphere.radius };
 	//MyDrawWireframeRoundedBox(minkowskiSum, 10, 10);
 
-	Segment translBetween2Frames = { sphere.ref.origin, Vector3Add(sphere.ref.origin, Vector3Scale(velocity, deltaTime)) };
+	Segment translBetween2Frames = { sphere.ref.origin, Vector3Add(sphere.ref.origin, Vector3Scale(velocity, deltaTime * TtoTravel)) };
 
 	if (IntersectSegmentRoundedBox(translBetween2Frames, minkowskiSum, colT, colSpherePos, colNormal)) {
 		newVelocity = Vector3Reflect(velocity, colNormal);
@@ -1611,6 +1613,7 @@ bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 /// <summary>
 /// Applique la force de frottement suite à une collision. Méthode utilisé par la méthode UpdateBall.
 /// Cela a pour unique conséquence de modifier le vecteur de rotation de la balle.
+/// Ne modifie pas l'orientation de la balle.
 /// </summary>
 /// <returns>Nouveau vecteur de rotation de la balle</returns>
 Vector3 ApplyFriction(BouncingSphere ball, float deltaTime, Vector3 colSpherePos, Vector3 colNormal) {
@@ -1659,56 +1662,121 @@ Quaternion computeNewOrient(BouncingSphere ball, float deltaTime) {
 	return QuaternionMultiply(ball.sphere.ref.q, QuaternionFromAxisAngle(Vector3Normalize(ball.rotVect), Vector3Length(ball.rotVect) * deltaTime));
 }
 
+//void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float deltaTime) {
+//	float colT;
+//	float lowerColT = FLT_MAX;
+//	float TtoTravel = 1;		// Représente la distance en pourcentage du segment souhaité être parcouru par la balle
+//	Vector3 colSpherePos;
+//	Vector3 colNormal;
+//	Vector3 newPosition;
+//	Vector3 newVelocity;
+//	
+//	//// com
+//	//Segment remaining;
+//	
+//	bool anyCollision = false;
+//	
+//	Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
+//	ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
+//	
+//	//for each (Obstacle obstacle in obstacles) {
+//	//	if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)
+//	//		&& colT < lowerColT) {
+//	//		anyCollision = true;
+//	//		lowerColT = colT;
+//
+//	//		//std::cout << "inter\n";
+//	//		ball.translVect = newVelocity;
+//	//		ball.rotVect = ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
+//	//	}
+//	//}
+//
+//	if (anyCollision) {
+//		ball.sphere.ref.origin = newPosition;
+//
+//		// TODO
+//		// On s'assure qu'il n'y a pas de collision suplémentaire qui se déroulerait après la première collision.
+//		// D'abord gérer la position avant l'orientation
+//		// Tant que c'est le cas, alors on met à jour la balle
+//		// mettre 1 seule GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox() dans une boucle suffirait
+//		anyCollision = false;
+//		do {
+//			for each (Obstacle obstacle in obstacles) {
+//				if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, TtoTravel, colT, colSpherePos, colNormal, newPosition, newVelocity, remainingTtoTravel)
+//					&& colT<lowerColT) {
+//					anyCollision = true;
+//					lowerColT = colT;
+//
+//					ball.translVect = newVelocity;
+//					ball.rotVect = ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
+//				}
+//			}
+//		} while (anyCollision && remainingTtoTravel!=0);
+//	}
+//	else {
+//		ball.sphere.ref.origin = computeNewPositionWithoutColliding(ball, deltaTime);
+//	}
+//	
+//	ball.sphere.ref.q = computeNewOrient(ball, deltaTime);
+//}
+
 void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float deltaTime) {
 	float colT;
-	float lowerColT = FLT_MAX;
+	float TtoTravel = 1;		// Représente la distance en pourcentage du segment de déplacement souhaité être parcouru par la balle
+	float remainingTtoTravel;
 	Vector3 colSpherePos;
 	Vector3 colNormal;
 	Vector3 newPosition;
 	Vector3 newVelocity;
 	
-	//// com
-	//Segment remaining;
-	
-	bool anyCollision = false;
-	
+	float lowerColT = FLT_MAX;
+	Vector3 lowerColT_newVelocity, lowerColT_colSpherePos, lowerColT_colNormal;
+
+	bool anyCollision;
+
+	// Application de la gravité
 	Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
 	ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
-	
-	for each (Obstacle obstacle in obstacles) {
-		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)
-			&& colT < lowerColT) {
-			anyCollision = true;
-			lowerColT = colT;
 
-			//std::cout << "inter\n";
-			ball.translVect = newVelocity;
-			ball.rotVect = ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
+	do {
+		anyCollision = false;
+
+		for each (Obstacle obstacle in obstacles) {
+			if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, TtoTravel, colT, colSpherePos, colNormal, newPosition, newVelocity, remainingTtoTravel)
+				&& colT < lowerColT) {
+				anyCollision = true;
+
+				lowerColT = colT;
+				lowerColT_newVelocity = newVelocity;
+				lowerColT_colSpherePos = colSpherePos;
+				lowerColT_colNormal = colNormal;
+			}
 		}
-	}
 
+		// Seulement après avoir observé tous les obstacles pour le déplacement actuellement testé, on modifie les vecteurs de la balle
+		// (autrement, ca fausserait les calculs pour les tests suivants de GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox() )
+		if (anyCollision) {
+			ball.translVect = lowerColT_newVelocity;
+			ball.rotVect = ApplyFriction(ball, deltaTime, lowerColT_colSpherePos, lowerColT_colNormal);		// !!! la methode utilise l'origine de la sphère (au pire osef de gerer l'orientation)
+			
+			// préparation pour les prochaines itérations
+			ball.sphere.ref.origin = lowerColT_colSpherePos;
+			TtoTravel = remainingTtoTravel;
+			lowerColT = FLT_MAX;
+		}
+	//} while (anyCollision && TtoTravel != 0);
+	} while (0);
+
+	// Actualisation de l'état de la balle (position et orientation)
 	if (anyCollision) {
 		ball.sphere.ref.origin = newPosition;
-
-		// TODO
-		// On s'assure qu'il n'y a pas de collision suplémentaire qui se déroulerait après la première collision
-		// Tant que c'est le cas, alors on met à jour la balle
-		//anyCollision = false;
-		//do {
-		//	for each (Obstacle obstacle in obstacles) {
-		//		if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, remaining, colT, colSpherePos, colNormal, newPosition, newVelocity)) {
-		//			anyCollision = true;
-		//		}
-		//	}
-		//} while (anyCollision);
 	}
 	else {
 		ball.sphere.ref.origin = computeNewPositionWithoutColliding(ball, deltaTime);
 	}
-	
+
 	ball.sphere.ref.q = computeNewOrient(ball, deltaTime);
 }
-
 
 #pragma endregion
 
