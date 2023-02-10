@@ -1587,7 +1587,7 @@ bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 	float& colT,
 	Vector3& colSpherePos,
 	Vector3& colNormal,
-	Vector3& newPosition,			// a suppr j'crois bien
+	Vector3& newPosition,
 	Vector3& newVelocity,
 	float& remainingTtoTravel) {
 
@@ -1601,7 +1601,8 @@ bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 	if (IntersectSegmentRoundedBox(translBetween2Frames, minkowskiSum, colT, colSpherePos, colNormal)) {
 		newVelocity = Vector3Reflect(velocity, colNormal);
 		float translBetween2FramesLen = Vector3Distance(translBetween2Frames.pt1, translBetween2Frames.pt2);
-		Vector3 remaining = Vector3Scale(Vector3Normalize(newVelocity), translBetween2FramesLen * (1 - colT));
+		remainingTtoTravel = 1 - colT;
+		Vector3 remaining = Vector3Scale(Vector3Normalize(newVelocity), translBetween2FramesLen * remainingTtoTravel);
 		newPosition = Vector3Add(colSpherePos, remaining);
 
 		return true;
@@ -1662,64 +1663,6 @@ Quaternion computeNewOrient(BouncingSphere ball, float deltaTime) {
 	return QuaternionMultiply(ball.sphere.ref.q, QuaternionFromAxisAngle(Vector3Normalize(ball.rotVect), Vector3Length(ball.rotVect) * deltaTime));
 }
 
-//void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float deltaTime) {
-//	float colT;
-//	float lowerColT = FLT_MAX;
-//	float TtoTravel = 1;		// Représente la distance en pourcentage du segment souhaité être parcouru par la balle
-//	Vector3 colSpherePos;
-//	Vector3 colNormal;
-//	Vector3 newPosition;
-//	Vector3 newVelocity;
-//	
-//	//// com
-//	//Segment remaining;
-//	
-//	bool anyCollision = false;
-//	
-//	Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
-//	ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
-//	
-//	//for each (Obstacle obstacle in obstacles) {
-//	//	if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, colT, colSpherePos, colNormal, newPosition, newVelocity)
-//	//		&& colT < lowerColT) {
-//	//		anyCollision = true;
-//	//		lowerColT = colT;
-//
-//	//		//std::cout << "inter\n";
-//	//		ball.translVect = newVelocity;
-//	//		ball.rotVect = ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
-//	//	}
-//	//}
-//
-//	if (anyCollision) {
-//		ball.sphere.ref.origin = newPosition;
-//
-//		// TODO
-//		// On s'assure qu'il n'y a pas de collision suplémentaire qui se déroulerait après la première collision.
-//		// D'abord gérer la position avant l'orientation
-//		// Tant que c'est le cas, alors on met à jour la balle
-//		// mettre 1 seule GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox() dans une boucle suffirait
-//		anyCollision = false;
-//		do {
-//			for each (Obstacle obstacle in obstacles) {
-//				if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, TtoTravel, colT, colSpherePos, colNormal, newPosition, newVelocity, remainingTtoTravel)
-//					&& colT<lowerColT) {
-//					anyCollision = true;
-//					lowerColT = colT;
-//
-//					ball.translVect = newVelocity;
-//					ball.rotVect = ApplyFriction(ball, deltaTime, colSpherePos, colNormal);
-//				}
-//			}
-//		} while (anyCollision && remainingTtoTravel!=0);
-//	}
-//	else {
-//		ball.sphere.ref.origin = computeNewPositionWithoutColliding(ball, deltaTime);
-//	}
-//	
-//	ball.sphere.ref.q = computeNewOrient(ball, deltaTime);
-//}
-
 void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float deltaTime) {
 	float colT;
 	float TtoTravel = 1;		// Représente la distance en pourcentage du segment de déplacement souhaité être parcouru par la balle
@@ -1730,13 +1673,15 @@ void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float del
 	Vector3 newVelocity;
 	
 	float lowerColT = FLT_MAX;
-	Vector3 lowerColT_newVelocity, lowerColT_colSpherePos, lowerColT_colNormal;
+	Vector3 lowerColT_newVelocity, lowerColT_colSpherePos, lowerColT_colNormal, lowerColT_newPosition;
+	float lowerColT_remainingTtoTravel;
 
 	bool anyCollision;
+	bool anyCollisionOnce = false;
 
 	// Application de la gravité
-	Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
-	ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
+	//Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
+	//ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
 
 	do {
 		anyCollision = false;
@@ -1745,31 +1690,33 @@ void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float del
 			if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, TtoTravel, colT, colSpherePos, colNormal, newPosition, newVelocity, remainingTtoTravel)
 				&& colT < lowerColT) {
 				anyCollision = true;
+				anyCollisionOnce = true;
 
 				lowerColT = colT;
 				lowerColT_newVelocity = newVelocity;
 				lowerColT_colSpherePos = colSpherePos;
 				lowerColT_colNormal = colNormal;
+				lowerColT_newPosition = newPosition;
+				lowerColT_remainingTtoTravel = remainingTtoTravel;
 			}
 		}
 
-		// Seulement après avoir observé tous les obstacles pour le déplacement actuellement testé, on modifie les vecteurs de la balle
-		// (autrement, ca fausserait les calculs pour les tests suivants de GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox() )
 		if (anyCollision) {
+			// Seulement après avoir observé tous les obstacles pour le déplacement actuellement testé, on modifie les vecteurs de la balle
+			// (autrement, ca fausserait les calculs pour les tests suivants de GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox() )
 			ball.translVect = lowerColT_newVelocity;
 			ball.rotVect = ApplyFriction(ball, deltaTime, lowerColT_colSpherePos, lowerColT_colNormal);		// !!! la methode utilise l'origine de la sphère (au pire osef de gerer l'orientation)
 			
-			// préparation pour les prochaines itérations
+			// préparation pour la prochaine itération
 			ball.sphere.ref.origin = lowerColT_colSpherePos;
-			TtoTravel = remainingTtoTravel;
+			TtoTravel = lowerColT_remainingTtoTravel;
 			lowerColT = FLT_MAX;
 		}
-	//} while (anyCollision && TtoTravel != 0);
-	} while (0);
+	} while (anyCollision);
 
 	// Actualisation de l'état de la balle (position et orientation)
-	if (anyCollision) {
-		ball.sphere.ref.origin = newPosition;
+	if (anyCollisionOnce) {
+		ball.sphere.ref.origin = lowerColT_newPosition;
 	}
 	else {
 		ball.sphere.ref.origin = computeNewPositionWithoutColliding(ball, deltaTime);
@@ -1797,7 +1744,7 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 	);
 	float radius = 1;
 	float speed = 10;
-	Vector3 transVectInit = Vector3Scale({ -1, 0, -0.99 }, speed);
+	Vector3 transVectInit = Vector3Scale({ -1, 0, -0.8 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
 	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
 	color = RED;
@@ -1811,7 +1758,7 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 	);
 	color = {160, 160, 160, 255};
 	RoundedBox ground = { groundRef, {20,1,20}, 0 };
-	obstacle = Obstacle(ground, color);
+	obstacle = Obstacle(ground, color, true);
 	obstacles.push_back(obstacle);
 
 	ReferenceFrame topRef = ReferenceFrame(
@@ -1864,7 +1811,7 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 	//obstacles.push_back(obstacle);
 
 	// Les autres obstacles
-	float LOextent = 0.5;
+	/*float LOextent = 0.5;
 	float HIextent = 1.5;
 	float LOradius = 0;
 	float HIradius = 1;
@@ -1881,7 +1828,7 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 			obstacle = Obstacle(RandomDimRoundedBox(obsRef, LOextent, HIextent, LOradius, HIradius), color);
 			obstacles.push_back(obstacle);
 		}
-	}
+	}*/
 }
 
 void DrawScene(BouncingSphere ball, std::vector<Obstacle> obstacles) {
@@ -1893,6 +1840,7 @@ void DrawScene(BouncingSphere ball, std::vector<Obstacle> obstacles) {
 }
 
 #pragma region Tests
+
 /// <summary>
 /// Méthode appelée dans le main pour tester les fonctionnalités développées.
 /// </summary>
@@ -2196,17 +2144,17 @@ int main(int argc, char* argv[])
 		BeginMode3D(camera);
 		{			
 			// Referentiel 3D 
-			//DrawGrid(20, 1.0f);
-			//DrawLine3D({ 0 }, { 0,10,0 }, DARKGRAY);
-			//DrawSphere({ 10,0,0 }, .2f, RED);
-			//DrawSphere({ 0,10,0 }, .2f, GREEN);
-			//DrawSphere({ 0,0,10 }, .2f, BLUE);
+			DrawGrid(20, 1.0f);
+			DrawLine3D({ 0 }, { 0,10,0 }, DARKGRAY);
+			DrawSphere({ 10,0,0 }, .2f, RED);
+			DrawSphere({ 0,10,0 }, .2f, GREEN);
+			DrawSphere({ 0,0,10 }, .2f, BLUE);
 
 			//TestDrawAndIntersect();
 
 			// Mise à jour de l'état de la balle, pour appliquer les modifications
 			// entre la frame précédente et la frame actuelle
-			UpdateBall(ball, obstacles, deltaTime);			// en mode debug, passer 0.016667 à la place de deltatime
+			UpdateBall(ball, obstacles, 0.016667);			// en mode debug, passer 0.016667 à la place de deltatime	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 			// Puis on dessine le resultat
 			DrawScene(ball, obstacles);
