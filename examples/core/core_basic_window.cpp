@@ -141,8 +141,8 @@ struct BouncingSphere {
 	// Indique la translation de la sphère entre 2 frames.
 	// Son axe indique la direction et son sens de déplacement.
 	// Sa norme indique la vitesse de déplacement de la sphère.
-	Vector3 translVect;	
-	
+	Vector3 translVect;
+
 	// Indique le comportement en rotation de la sphère entre 2 frames.
 	// Son axe indique l'axe de rotation et le sens de rotation.
 	// Sa norme indique la vitesse angulaire de rotation.
@@ -279,7 +279,7 @@ Spherical CartesianToSpherical(Vector3 cart) {
 /// <param name="localRef">Référentiel local cible</param>
 /// <returns>Vecteur exprimé en coordonnées locales</returns>
 Vector3 GlobalToLocalVect(Vector3 globalVect, ReferenceFrame localRef) {
-	return { 
+	return {
 		Vector3DotProduct(globalVect, localRef.i),
 		Vector3DotProduct(globalVect, localRef.j),
 		Vector3DotProduct(globalVect, localRef.k)
@@ -342,7 +342,7 @@ int RandomInt(int LO, int HI) {
 Vector3 RandomVector3Normalized() {
 	float LOcoord = -10.0;
 	float HIcoord = 10.0;
-	return Vector3Normalize({RandomFloat(LOcoord, HIcoord), RandomFloat(LOcoord, HIcoord), RandomFloat(LOcoord, HIcoord)});
+	return Vector3Normalize({ RandomFloat(LOcoord, HIcoord), RandomFloat(LOcoord, HIcoord), RandomFloat(LOcoord, HIcoord) });
 }
 
 RoundedBox RandomDimRoundedBox(ReferenceFrame ref, float LOextent, float HIextent, float LOradius, float HIradius) {
@@ -426,7 +426,7 @@ void MyDrawPolygonBox(Box box, Color color = LIGHTGRAY) {
 	QuaternionToAxisAngle(box.ref.q, &vect, &angle);
 	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
 	rlScalef(box.extents.x, box.extents.y, box.extents.z);
-	
+
 	float piOn2 = PI / 2;
 	Vector3 extents = { 1, 0, 1 };
 	// La face normale à l'axe X, situé dans la partie positive de l'axe
@@ -517,7 +517,7 @@ void MyDrawPolygonDisk(Disk disk, int nSectors, Color color = LIGHTGRAY) {
 	Vector3 vect;
 	float angle;
 	QuaternionToAxisAngle(disk.ref.q, &vect, &angle);
-	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);	
+	rlRotatef(angle * RAD2DEG, vect.x, vect.y, vect.z);
 	rlScalef(disk.radius, 1, disk.radius);
 
 	std::vector<Cylindrical> diskPointsAtPerim = computeDiskPoints(nSectors);
@@ -529,7 +529,7 @@ void MyDrawPolygonDisk(Disk disk, int nSectors, Color color = LIGHTGRAY) {
 		rlVertex3f(0, 0, 0);
 		carPt = CylindricalToCartesian(diskPointsAtPerim[i]);
 		rlVertex3f(carPt.x, carPt.y, carPt.z);
-		carPt2 = CylindricalToCartesian(diskPointsAtPerim[i+1]);
+		carPt2 = CylindricalToCartesian(diskPointsAtPerim[i + 1]);
 		rlVertex3f(carPt2.x, carPt2.y, carPt2.z);
 	}
 	rlEnd();
@@ -621,8 +621,8 @@ void MyDrawPolygonCylinder(Cylinder cylinder, int nSectors, bool drawCaps =
 
 	// Imbrication de la transformation dans l'espace
 	if (drawCaps) {
-		Disk top = { {{0, 1, 0},  QuaternionIdentity()}, 1};
-		Disk bottom = { {{0, -1, 0}, QuaternionFromAxisAngle({1, 0, 0}, PI)}, 1};
+		Disk top = { {{0, 1, 0},  QuaternionIdentity()}, 1 };
+		Disk bottom = { {{0, -1, 0}, QuaternionFromAxisAngle({1, 0, 0}, PI)}, 1 };
 
 		MyDrawPolygonDisk(top, nSectors);
 		MyDrawPolygonDisk(bottom, nSectors);
@@ -720,7 +720,7 @@ void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	Vector3 top = SphericalToCartesian({ 1, 0, 0 });
 	Vector3 bottom = SphericalToCartesian({ 1, 0, PI });
 
-	rlBegin(RL_TRIANGLES);			
+	rlBegin(RL_TRIANGLES);
 	rlColor4ub(color.r, color.g, color.b, color.a);
 
 	Spherical sphPt;
@@ -735,10 +735,10 @@ void MyDrawPolygonSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	carPt = SphericalToCartesian(sphPt);
 	carPt_save = { carPt.x, carPt.y, carPt.z };			// Le 2ème point du prochain triangle sera le même, on le sauvegarde au lieu de le recalculer
 	rlVertex3f(carPt.x, carPt.y, carPt.z);
-	for (int i = 1 ; i < nMeridians*2 ; i++) {
+	for (int i = 1; i < nMeridians * 2; i++) {
 		rlVertex3f(top.x, top.y, top.z);
 		rlVertex3f(carPt_save.x, carPt_save.y, carPt_save.z);
-		sphPt = { 1, thetaPitch * (i+1), phiPitch };
+		sphPt = { 1, thetaPitch * (i + 1), phiPitch };
 		carPt = SphericalToCartesian(sphPt);
 		carPt_save = { carPt.x, carPt.y, carPt.z };			// Idem
 		rlVertex3f(carPt.x, carPt.y, carPt.z);
@@ -803,7 +803,7 @@ void MyDrawWireframeSphere(Sphere sphere, int nMeridians, int nParallels, Color
 	color = DARKGRAY) {
 	if (nMeridians < 2 || nParallels < 1)
 		return;
-	
+
 	return;
 }
 
@@ -817,7 +817,7 @@ void MyDrawSphere(Sphere sphere, int nMeridians, int nParallels, bool
 void MyDrawPolygonCapsule(Capsule capsule, int nSectors, int nParallels, Color
 	color = LIGHTGRAY)
 {
-	Cylinder cyl = { 
+	Cylinder cyl = {
 		ReferenceFrame({capsule.ref.origin.x, capsule.ref.origin.y, capsule.ref.origin.z}, capsule.ref.q),
 		capsule.halfHeight,
 		capsule.radius
@@ -827,12 +827,12 @@ void MyDrawPolygonCapsule(Capsule capsule, int nSectors, int nParallels, Color
 	Sphere sphereBottom = {
 		ReferenceFrame({capsule.ref.origin.x, capsule.ref.origin.y - capsule.halfHeight, capsule.ref.origin.z},
 		capsule.ref.q),
-		capsule.radius 
+		capsule.radius
 	};
 	Sphere sphereTop = {
 		ReferenceFrame({capsule.ref.origin.x, capsule.ref.origin.y + capsule.halfHeight, capsule.ref.origin.z},
 		capsule.ref.q),
-		capsule.radius 
+		capsule.radius
 	};
 	MyDrawPolygonSphere(sphereTop, nSectors, nParallels, color);
 	MyDrawPolygonSphere(sphereBottom, nSectors, nParallels, color);
@@ -904,7 +904,7 @@ void MyDrawPolygonRoundedBox(RoundedBox roundedBox, int nSectors, int nParallels
 	Quaternion qPiOn2RotatedOnZ = QuaternionFromAxisAngle({ 0, 0, 1 }, piOn2);
 
 	// Dessin des 1 * 4 capsules et des 3 * 4 cylindres
-	Capsule capsForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, 0, roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius};
+	Capsule capsForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, 0, roundedBox.extents.z}, qId), roundedBox.extents.y, roundedBox.radius };
 	Cylinder cylOnYPositiveForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
 	Cylinder cylOnYNegativeForSideNormalToXPositive = { ReferenceFrame({roundedBox.extents.x, -roundedBox.extents.y, 0}, qPiOn2RotatedOnX), roundedBox.extents.z, roundedBox.radius };
 	MyDrawPolygonCapsule(capsForSideNormalToXPositive, nSectors, nParallels, color);
@@ -1037,7 +1037,7 @@ bool IntersectLinePlane(Line line, Plane plane, float& t, Vector3& interPt, Vect
 {
 	float dotProd = Vector3DotProduct(plane.normal, line.dir);
 	if (fabsf(dotProd) < EPSILON) return false;
-	
+
 	t = (plane.d - Vector3DotProduct(plane.normal, line.pt)) / dotProd;
 	interPt = Vector3Add(line.pt, Vector3Scale(line.dir, t));
 	interNormal = Vector3Scale(plane.normal,
@@ -1070,10 +1070,10 @@ bool IntersectSegmentPlane(Segment seg, Plane plane, float& t, Vector3& interPt,
 /// <param name="interNormal">Si intersection detecté, indique le vecteur normal à la surface de la primitive, où est localisé interPt</param>
 /// <returns>True si l'intersection existe, False sinon</returns>
 bool IntersectSegmentQuad(Segment seg, Quad quad, float& t, Vector3& interPt, Vector3& interNormal) {
-	Plane superimposedPlane;		
-	Vector3 n = quad.ref.j;	
+	Plane superimposedPlane;
+	Vector3 n = quad.ref.j;
 	float d = Vector3DotProduct(n, quad.ref.origin);
-	superimposedPlane = { n, d};
+	superimposedPlane = { n, d };
 
 	bool isIntersection = IntersectSegmentPlane(seg, superimposedPlane, t, interPt, interNormal);
 	if (isIntersection) {
@@ -1104,7 +1104,7 @@ bool IntersectSegmentBox(Segment seg, Box box, float& t, Vector3& interPt,
 	float piOn2 = PI / 2;
 	Vector3 originForNextQuad;
 	float distanceQuadPt1ForNextQuad;
-	
+
 	// Construction des 6 Quads qui repésentent la Box
 	Vector3 extentsForQuadsOnX = { box.extents.y, 0, box.extents.z };
 	originForNextQuad = Vector3Add(box.ref.origin, Vector3Scale(box.ref.i, box.extents.x));
@@ -1264,13 +1264,13 @@ bool IntersectSegmentCapsule(Segment seg, Capsule capsule, float& t, Vector3& in
 
 	// OBB
 	ReferenceFrame refObb = ReferenceFrame(capsule.ref.origin, capsule.ref.q);
-	Vector3 extentsObb = {capsule.radius, capsule.halfHeight + capsule.radius, capsule.radius};
-	Box obb = { refObb, extentsObb};
+	Vector3 extentsObb = { capsule.radius, capsule.halfHeight + capsule.radius, capsule.radius };
+	Box obb = { refObb, extentsObb };
 	if (!IsSegmentInsideBox(seg, obb) && !IntersectSegmentBox(seg, obb, t, interPt, interNormal))
 		return false;
 
 	Vector3 up = LocalToGlobalPos({ 0, capsule.halfHeight, 0 }, capsule.ref);
-	Vector3 down = LocalToGlobalPos({ 0, - capsule.halfHeight, 0 }, capsule.ref);
+	Vector3 down = LocalToGlobalPos({ 0, -capsule.halfHeight, 0 }, capsule.ref);
 
 	ReferenceFrame ref = ReferenceFrame(capsule.ref.origin, capsule.ref.q);
 	Cylinder cylinder = { ref, capsule.halfHeight, capsule.radius };
@@ -1354,7 +1354,7 @@ bool IntersectSegmentRoundedBox(Segment seg, RoundedBox rndBox, float& t,
 	Vector3 vectExtentY = LocalToGlobalVect({ 0, rndBox.extents.y, 0 }, rndBox.ref);
 	Vector3 vectExtentYWithRadius = LocalToGlobalVect({ 0, rndBox.extents.y + rndBox.radius, 0 }, rndBox.ref);
 	Vector3 vectExtentZ = LocalToGlobalVect({ 0 , 0, rndBox.extents.z }, rndBox.ref);
-	Vector3 vectExtentZWithRadius = LocalToGlobalVect({ 0 , 0, rndBox.extents.z + rndBox.radius}, rndBox.ref);
+	Vector3 vectExtentZWithRadius = LocalToGlobalVect({ 0 , 0, rndBox.extents.z + rndBox.radius }, rndBox.ref);
 
 	// Construction des 6 Quads
 	Vector3 extentsForQuadsOnX = { rndBox.extents.y, 0, rndBox.extents.z };
@@ -1537,7 +1537,7 @@ void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
 	// 2) calcul du vecteur de déplacement de la souris entre la position courante de la souris et la précédente
 	mouseVect = Vector2Subtract(mousePos, prevMousePos);
 	// 3) mise à jour de la position précédente de la souris avec la position courante
-	prevMousePos = mousePos; 
+	prevMousePos = mousePos;
 
 	// 4) calcul du vecteur de déplacement de la caméra en coordonnées sphériques
 	sphDelta = CartesianToSpherical(camera->position);
@@ -1568,15 +1568,6 @@ void MyUpdateOrbitalCamera(Camera* camera, float deltaTime)
 /// En cas d'intersection, la méthode renvoie les informations utiles pour définir le nouvel état de la sphère.
 /// La méthode ne met pas à jour l'état de la sphère.
 /// </summary>
-/// <param name="sphere"></param>
-/// <param name="rndBox"></param>
-/// <param name="velocity"></param>
-/// <param name="deltaTime"></param>
-/// <param name="colT">Si intersection detecté, </param>
-/// <param name="colSpherePos">Si intersection detecté, </param>
-/// <param name="colNormal">Si intersection detecté, </param>
-/// <param name="newPosition">Si intersection detecté, </param>
-/// <param name="newVelocity">Si intersection detecté, </param>
 /// <returns></returns>
 bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 	Sphere sphere,
@@ -1594,12 +1585,14 @@ bool GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(
 	// Cette Rounded Box, qui est la somme de Minkowski entre la sphère et la rounded box obstacle, est utilisée
 	// pour déterminer si la sphère entre en collision avec la rounded box obstacle.
 	RoundedBox minkowskiSum = { rndBox.ref, rndBox.extents, rndBox.radius + sphere.radius };
-	//MyDrawWireframeRoundedBox(minkowskiSum, 10, 10);
+	//MyDrawPolygonRoundedBox(minkowskiSum, 10, 10);
 
 	Segment translBetween2Frames = { sphere.ref.origin, Vector3Add(sphere.ref.origin, Vector3Scale(velocity, deltaTime * TtoTravel)) };
 
-	if (IntersectSegmentRoundedBox(translBetween2Frames, minkowskiSum, colT, colSpherePos, colNormal)) {
+	if (IntersectSegmentRoundedBox(translBetween2Frames, minkowskiSum, colT, colSpherePos, colNormal) && fabsf(colT)>EPSILON*3 && fabsf(colT) <= 1) {
+		//std::cout << "t=" << colT << "\n";
 		newVelocity = Vector3Reflect(velocity, colNormal);
+
 		float translBetween2FramesLen = Vector3Distance(translBetween2Frames.pt1, translBetween2Frames.pt2);
 		remainingTtoTravel = 1 - colT;
 		Vector3 remaining = Vector3Scale(Vector3Normalize(newVelocity), translBetween2FramesLen * remainingTtoTravel);
@@ -1671,7 +1664,7 @@ void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float del
 	Vector3 colNormal;
 	Vector3 newPosition;
 	Vector3 newVelocity;
-	
+
 	float lowerColT = FLT_MAX;
 	Vector3 lowerColT_newVelocity, lowerColT_colSpherePos, lowerColT_colNormal, lowerColT_newPosition;
 	float lowerColT_remainingTtoTravel;
@@ -1680,18 +1673,28 @@ void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float del
 	bool anyCollisionOnce = false;
 
 	// Application de la gravité
-	//Vector3 gravity = { 0, -9.81, 0 };			// !!!!!!!!!! masse non-prise en compte
-	//ball.translVect = Vector3Add(ball.translVect, Vector3Scale(gravity, deltaTime));
+	float weight = ball.mass * 9.81;
+	ball.translVect = Vector3Add(ball.translVect, Vector3Scale({0, -1, 0}, weight * deltaTime));
 
 	do {
 		anyCollision = false;
 
+		// temp
+		//Segment translBetween2Frames = { ball.sphere.ref.origin, Vector3Add(ball.sphere.ref.origin, Vector3Scale(ball.translVect, deltaTime * TtoTravel)) };
+		//DrawLine3D(translBetween2Frames.pt1, translBetween2Frames.pt2, GREEN);			// segment tracé étrange
+		//float translBetween2FramesLen = Vector3Distance(translBetween2Frames.pt1, translBetween2Frames.pt2);
+		//std::cout << "translBetween2FramesLen=" << translBetween2FramesLen << "\n";
+
 		for each (Obstacle obstacle in obstacles) {
+
 			if (GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox(ball.sphere, obstacle.rb, ball.translVect, deltaTime, TtoTravel, colT, colSpherePos, colNormal, newPosition, newVelocity, remainingTtoTravel)
 				&& colT < lowerColT) {
+				
+
 				anyCollision = true;
 				anyCollisionOnce = true;
 
+				// !!!!!!!!!!! Lignes de code ci-dessous inutiles je crois, il y a déjà la condition colT < lowerColT 
 				lowerColT = colT;
 				lowerColT_newVelocity = newVelocity;
 				lowerColT_colSpherePos = colSpherePos;
@@ -1706,13 +1709,14 @@ void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float del
 			// (autrement, ca fausserait les calculs pour les tests suivants de GetSphereNewPositionAndVelocityIfCollidingWithRoundedBox() )
 			ball.translVect = lowerColT_newVelocity;
 			ball.rotVect = ApplyFriction(ball, deltaTime, lowerColT_colSpherePos, lowerColT_colNormal);		// !!! la methode utilise l'origine de la sphère (au pire osef de gerer l'orientation)
-			
+
 			// préparation pour la prochaine itération
-			ball.sphere.ref.origin = lowerColT_colSpherePos;
+			ball.sphere.ref.origin = lowerColT_colSpherePos;		// {90, 90, 90}
 			TtoTravel = lowerColT_remainingTtoTravel;
 			lowerColT = FLT_MAX;
 		}
-	} while (anyCollision);
+	//} while (0);
+	} while (anyCollision && TtoTravel != 0);
 
 	// Actualisation de l'état de la balle (position et orientation)
 	if (anyCollisionOnce) {
@@ -1733,7 +1737,9 @@ void UpdateBall(BouncingSphere& ball, std::vector<Obstacle> obstacles, float del
 /// <param name="ball">La référence d'une BouncingSphere. La méthode initialise la BouncingSphere.</param>
 /// <param name="obstacles">La référence d'un tableau de Obstacle. La méthode créer les obstacles et les insert dans ce tableau.</param>
 /// </summary>
-void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
+void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles, bool& drawReferential) {
+	drawReferential = false;
+
 	Color color;
 	Obstacle obstacle;
 
@@ -1743,10 +1749,10 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 		QuaternionIdentity()
 	);
 	float radius = 1;
-	float speed = 10;
+	float speed = 30;
 	Vector3 transVectInit = Vector3Scale({ -1, 0, -0.8 }, speed);
 	Vector3 rotVectInit = Vector3Zero();
-	float mass = 2;			// La masse en Kg. A ajuster selon le comportement souhaité
+	float mass = 5;			// A ajuster selon le comportement souhaité
 	color = RED;
 	ball = BouncingSphere({ ballRef, radius }, transVectInit, rotVectInit, mass, color);
 
@@ -1756,9 +1762,9 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 		{ 0, 0, 0 },
 		QuaternionIdentity()
 	);
-	color = {160, 160, 160, 255};
+	color = { 160, 160, 160, 255 };
 	RoundedBox ground = { groundRef, {20,1,20}, 0 };
-	obstacle = Obstacle(ground, color, true);
+	obstacle = Obstacle(ground, color);
 	obstacles.push_back(obstacle);
 
 	ReferenceFrame topRef = ReferenceFrame(
@@ -1811,14 +1817,14 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 	//obstacles.push_back(obstacle);
 
 	// Les autres obstacles
-	/*float LOextent = 0.5;
+	float LOextent = 0.5;
 	float HIextent = 1.5;
 	float LOradius = 0;
 	float HIradius = 1;
 	float deltaPos = 6.6667;
 	ReferenceFrame obsRef;
 	color = PURPLE;
-	
+
 	for (int i = -2; i < 3; i++) {
 		for (int j = -2; j < 3; j++) {
 			obsRef = ReferenceFrame(
@@ -1828,7 +1834,7 @@ void BuildScene(BouncingSphere& ball, std::vector<Obstacle>& obstacles) {
 			obstacle = Obstacle(RandomDimRoundedBox(obsRef, LOextent, HIextent, LOradius, HIradius), color);
 			obstacles.push_back(obstacle);
 		}
-	}*/
+	}
 }
 
 void DrawScene(BouncingSphere ball, std::vector<Obstacle> obstacles) {
@@ -2071,7 +2077,9 @@ void TestDrawAndIntersect() {
 /// <summary>
 /// Méthode appelée dans le main pour tester le rebond avec les configuations souhaitées.
 /// </summary>
-void BuildSceneTest(BouncingSphere& ball, std::vector<Obstacle>& obs) {
+void BuildSceneTest(BouncingSphere& ball, std::vector<Obstacle>& obs, bool& drawReferential) {
+	drawReferential = true;
+
 	// TEST BOUNCING BALL ROUNDED BOX PARTIE SHPERE
 	ReferenceFrame ballRef = ReferenceFrame(
 		{ 13, 15, 15 },
@@ -2088,7 +2096,31 @@ void BuildSceneTest(BouncingSphere& ball, std::vector<Obstacle>& obs) {
 		{ 0, 0, 0 },
 		QuaternionFromAxisAngle({ 0,1,1 }, PI / 3)
 	);
-	RoundedBox rb1 = { obs1Ref, {1,2,1}, 4 };
+	RoundedBox rb1 = { obs1Ref, {6, 6, 6}, 6 };
+	Obstacle obs1 = Obstacle(rb1, PURPLE);
+	obs.push_back(obs1);
+}
+
+void BuildSceneTest2(BouncingSphere& ball, std::vector<Obstacle>& obs, bool& drawReferential) {
+	drawReferential = false;
+
+	// TEST BOUNCING BALL ROUNDED BOX PARTIE SHPERE
+	ReferenceFrame ballRef = ReferenceFrame(
+		{ 0, 20, 0 },
+		QuaternionIdentity()
+	);
+	float speed = 5;
+	Vector3 transVectInit = Vector3Zero();
+	Vector3 rotVectInit = Vector3Zero();
+	float mass = 2;
+	Color color = RED;
+	ball = BouncingSphere({ ballRef, 2 }, transVectInit, rotVectInit, mass, color);
+
+	ReferenceFrame obs1Ref = ReferenceFrame(
+		{ 0, 0, 0 },
+		QuaternionIdentity()
+	);
+	RoundedBox rb1 = { obs1Ref, {6, 0, 6}, 0 };
 	Obstacle obs1 = Obstacle(rb1, PURPLE);
 	obs.push_back(obs1);
 }
@@ -2120,8 +2152,24 @@ int main(int argc, char* argv[])
 
 	BouncingSphere ball;
 	std::vector<Obstacle> obstacles;
-	BuildScene(ball, obstacles);
-	//BuildSceneTest(ball, obstacles);
+	bool drawReferential;
+	int sceneToDraw = 0;
+
+	switch (sceneToDraw)
+	{
+		case 0:
+		BuildScene(ball, obstacles, drawReferential);
+		break;
+		
+		case 1:
+		BuildSceneTest(ball, obstacles, drawReferential);
+		break;
+
+		case 2:
+		BuildSceneTest2(ball, obstacles, drawReferential);
+		break;
+	}
+
 
 
 	//--------------------------------------------------------------------------------------
@@ -2142,13 +2190,15 @@ int main(int argc, char* argv[])
 		ClearBackground(RAYWHITE);
 
 		BeginMode3D(camera);
-		{			
-			// Referentiel 3D 
-			DrawGrid(20, 1.0f);
-			DrawLine3D({ 0 }, { 0,10,0 }, DARKGRAY);
-			DrawSphere({ 10,0,0 }, .2f, RED);
-			DrawSphere({ 0,10,0 }, .2f, GREEN);
-			DrawSphere({ 0,0,10 }, .2f, BLUE);
+		{
+			
+			if (drawReferential) {
+				DrawGrid(20, 1.0f);
+				DrawLine3D({ 0 }, { 0,10,0 }, DARKGRAY);
+				DrawSphere({ 10,0,0 }, .2f, RED);
+				DrawSphere({ 0,10,0 }, .2f, GREEN);
+				DrawSphere({ 0,0,10 }, .2f, BLUE);
+			}
 
 			//TestDrawAndIntersect();
 
